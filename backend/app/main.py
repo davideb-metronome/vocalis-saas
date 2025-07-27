@@ -9,8 +9,8 @@ from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
-from app.api import auth, billing, usage, webhooks
-from app.core.config import settings
+from .api import auth, billing, usage, webhooks
+from .core.config import settings
 
 # Initialize FastAPI app
 app = FastAPI(
