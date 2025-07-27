@@ -1,0 +1,11 @@
+{
+  "name": "vocalis-frontend",
+  "version": "1.0.0",
+  "description": "Vocalis SaaS Frontend Assets",
+  "scripts": {
+    "dev": "echo 'Frontend development server not needed - served by FastAPI'",
+    "build": "echo 'No build process needed for vanilla JS/CSS'"
+  },
+  "devDependencies": {},
+  "dependencies": {}
+}
