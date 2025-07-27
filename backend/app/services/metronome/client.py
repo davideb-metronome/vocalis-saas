@@ -133,60 +133,46 @@ class MetronomeClient:
             logger.error(f"❌ Failed to create customer: {e}")
             raise Exception(f"Failed to create customer in Metronome: {e}")
         
-    
+
     async def create_billing_contract(self, customer_id: str, contract_data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Create billing contract for prepaid credits
-        
-        NOTE: This is a placeholder - Metronome's actual prepaid billing setup
-        might use different endpoints. Need to check their billing contract docs.
+        Create minimal billing contract for testing
         
         Args:
             customer_id: Metronome customer ID
-            contract_data: Dict containing:
-                - credits: Number of credits to purchase
-                - amount: Dollar amount
-                - billing_type: "prepaid_credits"
-                
+            contract_data: Dict (unused for now, keeping for compatibility)
+            
         Returns:
             Dict containing contract details
-            
-        TODO: Replace with actual Metronome billing contract endpoint
         """
-        logger.info(f"Creating billing contract for customer {customer_id}: ${contract_data.get('amount')}")
+        logger.info(f"Creating minimal billing contract for customer {customer_id}")
         
-        # NOTE: This endpoint might not exist in Metronome - need to check their billing docs
-        # Metronome might handle prepaid differently (via plans, contracts, or direct credit additions)
+        # Minimal payload with only required fields
         payload = {
             "customer_id": customer_id,
-            "billing_type": contract_data.get("billing_type", "prepaid"),
-            "amount": contract_data["amount"],
-            "credits": contract_data["credits"],
-            "currency": "USD"
+            "starting_at": "2025-07-01T00:00:00.000Z"
         }
         
         try:
-            # WARNING: This endpoint is speculative - need real Metronome billing docs
-            response_data = await self._make_request("POST", "/v1/billing/contracts", payload)
+            response_data = await self._make_request("POST", "/v1/contracts/create", payload)
             
+            # Extract contract ID from response
             contract_id = response_data.get("data", {}).get("id")
             if not contract_id:
                 raise Exception("No contract ID returned from Metronome")
             
-            logger.info(f"✅ Billing contract created: {contract_id}")
+            logger.info(f"✅ Minimal contract created: {contract_id}")
             
             return {
                 "id": contract_id,
                 "customer_id": customer_id,
-                "amount": contract_data["amount"],
-                "credits": contract_data["credits"]
+                "status": "created"
             }
             
         except Exception as e:
-            logger.error(f"❌ Failed to create billing contract: {e}")
-            # For now, continue with demo flow but log the error
-            raise Exception(f"Failed to create billing contract: {e}")
-    
+            logger.error(f"❌ Failed to create contract: {e}")
+            raise Exception(f"Failed to create contract in Metronome: {e}")
+
     async def get_customer_balance(self, customer_id: str) -> Dict[str, Any]:
         """
         Get customer's current credit balance
