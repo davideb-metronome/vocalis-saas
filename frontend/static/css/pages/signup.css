@@ -1,0 +1,153 @@
+/* Signup Page Styles */
+
+body {
+    background: linear-gradient(135deg, var(--gray-50) 0%, var(--gray-200) 100%);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.signup-container {
+    max-width: 400px;
+    width: 100%;
+    padding: var(--spacing-lg);
+}
+
+.signup-header {
+    text-align: center;
+    margin-bottom: 40px;
+    background: white;
+    padding: 30px;
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-md);
+}
+
+.creator-badge {
+    display: inline-block;
+    background: linear-gradient(135deg, var(--success-green), var(--success-green-dark));
+    color: white;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    margin-bottom: 15px;
+}
+
+.signup-header h1 {
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 12px;
+    color: var(--gray-800);
+    margin-top: 0;
+}
+
+.signup-header p {
+    color: var(--gray-500);
+    line-height: 1.6;
+    margin: 0;
+}
+
+.signup-form {
+    background: white;
+    padding: 30px;
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-md);
+    margin-bottom: var(--spacing-lg);
+}
+
+.form-group {
+    margin-bottom: var(--spacing-lg);
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+}
+
+.form-label {
+    display: block;
+    margin-bottom: var(--spacing-sm);
+    font-weight: 600;
+    color: var(--gray-700);
+}
+
+.password-strength {
+    margin-top: var(--spacing-sm);
+    font-size: 12px;
+    color: var(--gray-500);
+}
+
+.strength-bar {
+    width: 100%;
+    height: 3px;
+    background: var(--gray-300);
+    border-radius: 2px;
+    margin-top: 4px;
+    overflow: hidden;
+}
+
+.strength-fill {
+    height: 100%;
+    width: 0%;
+    background: var(--error-red);
+    border-radius: 2px;
+    transition: all 0.3s;
+}
+
+.strength-weak .strength-fill {
+    width: 33%;
+    background: var(--error-red);
+}
+
+.strength-medium .strength-fill {
+    width: 66%;
+    background: var(--warning-orange);
+}
+
+.strength-strong .strength-fill {
+    width: 100%;
+    background: var(--success-green);
+}
+
+.terms {
+    font-size: 12px;
+    color: var(--gray-500);
+    text-align: center;
+    margin-top: var(--spacing-lg);
+    line-height: 1.4;
+}
+
+.terms a {
+    color: var(--primary-blue);
+    text-decoration: none;
+}
+
+.terms a:hover {
+    text-decoration: underline;
+}
+
+.signin-link {
+    text-align: center;
+    font-size: 14px;
+    color: var(--gray-500);
+    margin-top: var(--spacing-lg);
+}
+
+.signin-link a {
+    color: var(--primary-blue);
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.signin-link a:hover {
+    text-decoration: underline;
+}
+
+@media (max-width: 768px) {
+    .form-row {
+        grid-template-columns: 1fr;
+        gap: var(--spacing-lg);
+    }
+}

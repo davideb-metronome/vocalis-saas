@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Purchase Credits - Vocalis</title>
+    
+    <!-- CSS -->
+    <link rel="stylesheet" href="/static/css/main.css">
+    <link rel="stylesheet" href="/static/css/components.css">
+    <link rel="stylesheet" href="/static/css/pages/billing.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Logo -->
+        <div class="logo">
+            <div class="logo-icon">V</div>
+            <div class="logo-text">VOCALIS</div>
+        </div>
+        
+        <!-- Progress Bar -->
+        <div class="progress-bar-container">
+            <div class="progress-steps">
+                <div class="step completed">
+                    <div class="step-number">1</div>
+                    <div class="step-label">Account</div>
+                </div>
+                <div class="step-connector completed"></div>
+                <div class="step active">
+                    <div class="step-number">2</div>
+                    <div class="step-label">Billing</div>
+                </div>
+                <div class="step-connector"></div>
+                <div class="step pending">
+                    <div class="step-number">3</div>
+                    <div class="step-label">Complete</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Billing Card -->
+        <div class="billing-card">
+            <button class="close-btn" id="close-btn">×</button>
+            
+            <div class="card-header">
+                <div class="card-title">Purchase Credits</div>
+                <div class="card-subtitle">Buy credits to power your voice generation and use them flexibly across all Vocalis features</div>
+                
+                <!-- Voice Options Preview -->
+                <div class="voice-preview">
+                    <div class="voice-tiers">
+                        <div class="voice-tier">
+                            <h4>Standard Voice</h4>
+                            <div class="cost">1 credit per character</div>
+                            <div class="description">High-quality AI voices for everyday use</div>
+                        </div>
+                        <div class="voice-tier">
+                            <h4>Premium Voice</h4>
+                            <div class="cost">2 credits per character</div>
+                            <div class="description">Enhanced emotional range & celebrity voices</div>
+                        </div>
+                        <div class="voice-tier">
+                            <h4>Clone Voice</h4>
+                            <div class="cost">25,000 credits one-time</div>
+                            <div class="description">Upload 5-10 minutes of samples, then use at standard rates</div>
+                        </div>
+                    </div>
+                    
+                    <p class="voice-tip">
+                        💡 <strong>Pro tip:</strong> 1,000 characters ≈ 1 minute of audio
+                    </p>
+                </div>
+            </div>
+            
+            <!-- Amount Display -->
+            <div class="amount-display">
+                <div class="amount-value" id="amount-display">$25.00</div>
+                <div class="credits-info" id="credits-info">100,000 credits</div>
+            </div>
+            
+            <!-- Pricing Breakdown -->
+            <div class="pricing-breakdown">
+                <div class="breakdown-row">
+                    <span>Standard voice audio:</span>
+                    <span id="standard-minutes">~100 minutes</span>
+                </div>
+                <div class="breakdown-row">
+                    <span>Premium voice audio:</span>
+                    <span id="premium-minutes">~50 minutes</span>
+                </div>
+                <div class="breakdown-row">
+                    <span>Per credit cost:</span>
+                    <span id="per-credit-cost">$0.00025</span>
+                </div>
+            </div>
+            
+            <!-- Credit Amount Input -->
+            <div class="credit-packages">
+                <div class="package-label">Credit Amount</div>
+                <input 
+                    type="text" 
+                    class="custom-input" 
+                    id="amount-input"
+                    placeholder="Enter amount ($5 - $1000)" 
+                    value="$25"
+                >
+            </div>
+            
+            <!-- Auto-recharge Section -->
+            <div class="auto-recharge-section">
+                <div class="auto-recharge-header">
+                    <div class="auto-recharge-title">🔄 Auto-recharge (Optional)</div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="autorecharge-toggle">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="auto-recharge-description">
+                    Automatically purchase more credits when your balance runs low
+                </div>
+                
+                <div class="auto-recharge-options" id="autorecharge-options">
+                    <div class="threshold-section">
+                        <div class="threshold-label">Trigger when balance drops below:</div>
+                        <div class="threshold-options">
+                            <div class="threshold-option selected" data-threshold="25000">
+                                <div class="threshold-credits">25K</div>
+                                <div class="threshold-dollars">$6.25</div>
+                            </div>
+                            <div class="threshold-option" data-threshold="50000">
+                                <div class="threshold-credits">50K</div>
+                                <div class="threshold-dollars">$12.50</div>
+                            </div>
+                            <div class="threshold-option" data-threshold="100000">
+                                <div class="threshold-credits">100K</div>
+                                <div class="threshold-dollars">$25.00</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="recharge-amount-section">
+                        <div class="recharge-amount-label">Auto-recharge amount:</div>
+                        
+                        <div class="custom-recharge-input">
+                            <input 
+                                type="text" 
+                                class="recharge-input" 
+                                id="recharge-input"
+                                placeholder="Enter amount ($22.50 - $1000)" 
+                                value="$50.00"
+                            >
+                            <div class="recharge-input-help">Minimum $22.50 (90,000 credits) required by Metronome</div>
+                        </div>
+                        
+                        <div class="recharge-presets">
+                            <button class="preset-btn" data-amount="25">$25</button>
+                            <button class="preset-btn active" data-amount="50">$50</button>
+                            <button class="preset-btn" data-amount="100">$100</button>
+                            <button class="preset-btn" data-amount="250">$250</button>
+                        </div>
+                    </div>
+                    
+                    <!-- Validation Warning -->
+                    <div class="validation-warning" id="validation-warning">
+                        <span class="icon">⚠️</span>
+                        <div id="warning-message"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Total -->
+            <div class="total-section">
+                <div class="total-label">Total</div>
+                <div class="total-amount" id="total-amount">$25.00</div>
+            </div>
+            
+            <!-- Purchase Button -->
+            <button class="btn-large" id="purchase-btn">
+                Purchase $25.00 of credits
+            </button>
+            
+            <!-- Terms -->
+            <div class="terms-text">
+                Credits never expire and can be used across all Vocalis features. By clicking "Purchase Credits" you agree to <a href="#">Vocalis's Terms of Service</a>
+            </div>
+        </div>
+        
+        <!-- Back Link -->
+        <div class="back-link">
+            <a href="/signup">← Back to Account Creation</a>
+        </div>
+    </div>
+
+    <!-- Notification Container -->
+    <div id="notification-container"></div>
+
+    <!-- JavaScript -->
+    <script src="/static/js/core/api-client.js"></script>
+    <script src="/static/js/core/notifications.js"></script>
+    <script src="/static/js/components/form-validation.js"></script>
+    <script src="/static/js/components/credit-calculator.js"></script>
+    <script src="/static/js/components/auto-recharge.js"></script>
+    <script src="/static/js/pages/billing.js"></script>
+</body>
+</html>

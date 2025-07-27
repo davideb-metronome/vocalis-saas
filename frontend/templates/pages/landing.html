@@ -4,79 +4,233 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Vocalis - Transform Text into Lifelike Voices</title>
-    <style>
-        body { 
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            margin: 0; 
-            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
-            min-height: 100vh;
-        }
-        .container { 
-            max-width: 1200px; 
-            margin: 0 auto; 
-            padding: 40px 20px; 
-            text-align: center;
-        }
-        .logo { 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            gap: 15px; 
-            margin-bottom: 40px; 
-        }
-        .logo-icon { 
-            width: 60px; 
-            height: 60px; 
-            background: linear-gradient(135deg, #1e88e5, #1565c0); 
-            border-radius: 12px; 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            color: white; 
-            font-size: 28px; 
-            font-weight: 700; 
-        }
-        .logo-text { 
-            font-size: 24px; 
-            font-weight: 700; 
-            color: #1e293b; 
-            letter-spacing: 2px; 
-        }
-        h1 { 
-            font-size: 48px; 
-            font-weight: 700; 
-            color: #1e293b; 
-            margin-bottom: 20px; 
-        }
-        p { 
-            font-size: 20px; 
-            color: #64748b; 
-            margin-bottom: 40px; 
-        }
-        .btn { 
-            display: inline-block; 
-            padding: 16px 32px; 
-            background: linear-gradient(135deg, #1e88e5, #1565c0); 
-            color: white; 
-            text-decoration: none; 
-            border-radius: 8px; 
-            font-weight: 600; 
-            margin: 0 10px;
-        }
-    </style>
+    
+    <!-- CSS -->
+    <link rel="stylesheet" href="/static/css/main.css">
+    <link rel="stylesheet" href="/static/css/components.css">
+    <link rel="stylesheet" href="/static/css/pages/landing.css">
 </head>
 <body>
-    <div class="container">
-        <div class="logo">
-            <div class="logo-icon">V</div>
-            <div class="logo-text">VOCALIS</div>
+    <!-- Header -->
+    <header class="header">
+        <nav class="nav">
+            <div class="logo">
+                <div class="logo-icon">V</div>
+                <div class="logo-text">VOCALIS</div>
+            </div>
+            <ul class="nav-links">
+                <li><a href="#features">Features</a></li>
+                <li><a href="#pricing">Pricing</a></li>
+                <li><a href="#docs">Docs</a></li>
+                <li><a href="#support">Support</a></li>
+            </ul>
+            <div class="nav-buttons">
+                <a href="#" class="btn-secondary">Sign In</a>
+                <a href="/signup" class="btn-primary">Start Free Trial</a>
+            </div>
+        </nav>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-content">
+            <h1>Transform Text into Lifelike Voices</h1>
+            <p>Create stunning AI voices, clone existing ones, and scale your audio content with our advanced voice generation platform.</p>
+            
+            <div class="hero-buttons">
+                <a href="/signup" class="btn-large primary">
+                    Start Creating
+                    <span class="btn-icon">→</span>
+                </a>
+                <a href="#demo" class="btn-large secondary">
+                    Watch Demo
+                    <span class="btn-icon">▶</span>
+                </a>
+            </div>
+
+            <!-- Trust Indicators -->
+            <div class="trust-indicators">
+                <div class="trust-stat">
+                    <div class="trust-number">99.9%</div>
+                    <div class="trust-label">Uptime</div>
+                </div>
+                <div class="trust-stat">
+                    <div class="trust-number">2M+</div>
+                    <div class="trust-label">Voices Generated</div>
+                </div>
+                <div class="trust-stat">
+                    <div class="trust-number">50ms</div>
+                    <div class="trust-label">Avg Response Time</div>
+                </div>
+            </div>
         </div>
-        
-        <h1>Transform Text into Lifelike Voices</h1>
-        <p>Create stunning AI voices, clone existing ones, and scale your audio content with our advanced voice generation platform.</p>
-        
-        <a href="/signup" class="btn">Start Creating →</a>
-        <a href="#" class="btn" style="background: white; color: #1e293b; border: 1px solid #e5e7eb;">Watch Demo ▶</a>
-    </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="features" id="features">
+        <div class="container">
+            <div class="section-header">
+                <h2>Powerful Voice AI Technology</h2>
+                <p>Everything you need to create professional-quality voices for any project</p>
+            </div>
+            
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">🗣️</div>
+                    <h3>AI Voice Generation</h3>
+                    <p>Convert any text into natural-sounding speech with our advanced neural networks. Choose from dozens of premium voices.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">👤</div>
+                    <h3>Voice Cloning</h3>
+                    <p>Create custom voices that sound exactly like you or your brand. Perfect for consistent audio content.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">⚡</div>
+                    <h3>Real-time Processing</h3>
+                    <p>Generate voices instantly with our high-performance infrastructure. No waiting, no delays.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">🔧</div>
+                    <h3>Easy Integration</h3>
+                    <p>Simple REST API and SDKs for popular languages. Get started in minutes, not hours.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">📊</div>
+                    <h3>Usage Analytics</h3>
+                    <p>Track your voice generation usage with detailed analytics and real-time billing insights.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">🛡️</div>
+                    <h3>Enterprise Security</h3>
+                    <p>SOC 2 compliant with enterprise-grade security. Your data and voices are always protected.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Pricing Preview -->
+    <section class="pricing-preview" id="pricing">
+        <div class="container">
+            <div class="section-header">
+                <h2>Simple, Transparent Pricing</h2>
+                <p>Pay only for what you use with our flexible credit system</p>
+            </div>
+
+            <div class="pricing-card">
+                <div class="pricing-header">
+                    <h3>Prepaid Credits</h3>
+                    <div class="pricing-rate">$0.00025 per credit</div>
+                    <div class="pricing-equivalent">4,000 credits per $1</div>
+                </div>
+
+                <div class="pricing-breakdown">
+                    <div class="pricing-item">
+                        <span>Standard Voice</span>
+                        <span>1 credit/character</span>
+                    </div>
+                    <div class="pricing-item">
+                        <span>Premium Voice</span>
+                        <span>2 credits/character</span>
+                    </div>
+                    <div class="pricing-item">
+                        <span>Voice Cloning Setup</span>
+                        <span>25,000 credits one-time</span>
+                    </div>
+                </div>
+
+                <div class="pricing-features">
+                    <div class="pricing-feature">✓ Credits never expire</div>
+                    <div class="pricing-feature">✓ Auto-recharge available</div>
+                    <div class="pricing-feature">✓ Volume discounts</div>
+                    <div class="pricing-feature">✓ Enterprise support</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="cta">
+        <div class="container">
+            <div class="cta-content">
+                <h2>Ready to Transform Your Audio Content?</h2>
+                <p>Join thousands of creators using Vocalis to bring their ideas to life</p>
+                
+                <div class="cta-buttons">
+                    <a href="/signup" class="btn-large primary">
+                        Start Your Free Trial
+                        <span class="btn-icon">→</span>
+                    </a>
+                </div>
+
+                <div class="cta-note">
+                    No credit card required • 1,000 free credits • Cancel anytime
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-brand">
+                    <div class="logo">
+                        <div class="logo-icon">V</div>
+                        <div class="logo-text">VOCALIS</div>
+                    </div>
+                    <p>Transform text into lifelike voices with AI</p>
+                </div>
+
+                <div class="footer-links">
+                    <div class="footer-section">
+                        <h4>Product</h4>
+                        <ul>
+                            <li><a href="#features">Features</a></li>
+                            <li><a href="#pricing">Pricing</a></li>
+                            <li><a href="#api">API</a></li>
+                            <li><a href="#docs">Documentation</a></li>
+                        </ul>
+                    </div>
+
+                    <div class="footer-section">
+                        <h4>Company</h4>
+                        <ul>
+                            <li><a href="#about">About</a></li>
+                            <li><a href="#blog">Blog</a></li>
+                            <li><a href="#careers">Careers</a></li>
+                            <li><a href="#contact">Contact</a></li>
+                        </ul>
+                    </div>
+
+                    <div class="footer-section">
+                        <h4>Support</h4>
+                        <ul>
+                            <li><a href="#help">Help Center</a></li>
+                            <li><a href="#status">Status</a></li>
+                            <li><a href="#privacy">Privacy</a></li>
+                            <li><a href="#terms">Terms</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="footer-bottom">
+                <p>&copy; 2025 Vocalis. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Notification Container -->
+    <div id="notification-container"></div>
+
+    <!-- JavaScript -->
+    <script src="/static/js/core/notifications.js"></script>
+    <script src="/static/js/pages/landing.js"></script>
 </body>
 </html>

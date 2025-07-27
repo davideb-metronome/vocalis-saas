@@ -1,5 +1,126 @@
 <!DOCTYPE html>
-<html>
-<head><title>Dashboard - Vocalis</title></head>
-<body><h1>Dashboard</h1><p>Voice generation dashboard coming soon...</p><a href="/">← Back to Home</a></body>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vocalis Dashboard - Credits</title>
+    
+    <!-- CSS -->
+    <link rel="stylesheet" href="/static/css/main.css">
+    <link rel="stylesheet" href="/static/css/components.css">
+    <link rel="stylesheet" href="/static/css/pages/dashboard.css">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <nav class="nav">
+            <div class="logo">
+                <div class="logo-icon">V</div>
+                <div class="logo-text">VOCALIS</div>
+            </div>
+            <div class="user-info">
+                <div class="billing-status">Credit Billing Active</div>
+                <div class="user-email" id="user-email">alex@email.com</div>
+            </div>
+        </nav>
+    </header>
+
+    <div class="container">
+        <!-- Welcome Banner -->
+        <div class="welcome-banner">
+            <h1>Welcome to Vocalis, <span id="user-name">Alex</span>! 🎉</h1>
+            <p>Your credits are ready to use. Create unlimited voices with your prepaid credits!</p>
+        </div>
+        
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Voice Generation Workspace -->
+            <div class="workspace">
+                <h2>Voice Generation Studio</h2>
+                
+                <div class="input-group">
+                    <label for="text-input">Text to Convert</label>
+                    <textarea 
+                        class="text-input" 
+                        id="text-input" 
+                        rows="4" 
+                        placeholder="Enter the text you want to convert to speech..."
+                    >Welcome to my YouTube channel! Today we're going to explore the fascinating world of AI voice generation and how it's revolutionizing content creation.</textarea>
+                    <div class="character-count" id="character-count">151 characters</div>
+                    <div class="credit-estimate" id="credit-estimate">
+                        <strong>Estimated cost:</strong> 151 credits (~$0.04) with Standard Voice
+                    </div>
+                </div>
+                
+                <!-- Voice Options -->
+                <div class="voice-options" id="voice-options">
+                    <div class="voice-option selected" data-type="standard" data-cost="1">
+                        <div class="voice-name">Standard Voice</div>
+                        <div class="voice-description">High-quality AI voices for everyday use</div>
+                        <div class="credit-cost">1 credit/character</div>
+                    </div>
+                    <div class="voice-option" data-type="premium" data-cost="2">
+                        <div class="voice-name">Premium Voice</div>
+                        <div class="voice-description">Enhanced emotional range & celebrity voices</div>
+                        <div class="credit-cost">2 credits/character</div>
+                    </div>
+                    <div class="voice-option clone-option" data-type="clone" data-cost="25000">
+                        <div class="voice-name">Clone Voice</div>
+                        <div class="voice-description">Create or use your custom voice</div>
+                        <div class="credit-cost" id="clone-cost-display">25,000 credits setup</div>
+                    </div>
+                </div>
+
+                <!-- Generate Button -->
+                <button class="btn-large" id="generate-btn">
+                    Generate Voice
+                </button>
+            </div>
+            
+            <!-- Credits Sidebar -->
+            <div class="sidebar">
+                <div class="credits-card">
+                    <h3>Credits Balance</h3>
+                    
+                    <div class="credits-balance">
+                        <div class="balance-amount" id="credits-balance">40,000</div>
+                        <div class="balance-label">credits remaining</div>
+                        <div class="balance-value" id="balance-value">≈ $10.00 value</div>
+                    </div>
+                    
+                    <div class="credits-breakdown">
+                        <div class="breakdown-item">
+                            <span>Total Purchased</span>
+                            <span id="total-purchased">40,000</span>
+                        </div>
+                        <div class="breakdown-item">
+                            <span>Total Used</span>
+                            <span id="total-used">0</span>
+                        </div>
+                        <div class="breakdown-item">
+                            <span>Remaining Balance</span>
+                            <span id="remaining-balance">40,000</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Auto-recharge Info (if active) -->
+                    <div class="auto-recharge-info" id="auto-recharge-info">
+                        <h4>🔄 Auto-Recharge Active</h4>
+                        <p id="auto-recharge-details">We'll automatically add credits when you drop below your threshold.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Container -->
+    <div id="notification-container"></div>
+
+    <!-- JavaScript -->
+    <script src="/static/js/core/api-client.js"></script>
+    <script src="/static/js/core/notifications.js"></script>
+    <script src="/static/js/components/voice-generator.js"></script>
+    <script src="/static/js/components/credit-display.js"></script>
+    <script src="/static/js/pages/dashboard.js"></script>
+</body>
 </html>
