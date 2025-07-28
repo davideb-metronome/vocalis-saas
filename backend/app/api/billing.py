@@ -47,12 +47,13 @@ async def purchase_credits(
             "auto_recharge": request.auto_recharge.dict() if request.auto_recharge else None
         }
         
-        # Create billing contract in Metronome - WILL FAIL until implemented
+        # Create billing contract in Metronome 
+        contract_data = {
+            "auto_recharge": request.auto_recharge.dict() if request.auto_recharge else None,
+            "amount": request.amount
+        }
         contract = await metronome_client.create_billing_contract(customer_id, contract_data)
-        
-        # Setup auto-recharge if configured
-        if request.auto_recharge and request.auto_recharge.enabled:
-            await metronome_client.setup_auto_recharge(customer_id, request.auto_recharge.dict())
+
         
         contract_id = contract.get("id")
         if not contract_id:

@@ -67,7 +67,7 @@ class MetronomeClient:
                     method=method,
                     url=url,
                     headers=headers,
-                    json=payload if payload else None
+                    json=payload
                 )
                 
                 # 🔍 RAW RESPONSE DEBUG
@@ -134,24 +134,131 @@ class MetronomeClient:
             raise Exception(f"Failed to create customer in Metronome: {e}")
         
 
+
+    async def get_rate_card(self, rate_card_name: str = "Vocalis 2025") -> Optional[str]:
+        """
+        Retrieve rate card ID by name
+        
+        Args:
+            rate_card_name: Name of the rate card to find
+            
+        Returns:
+            Rate card ID if found, None otherwise
+        """
+        logger.info(f"Looking for '{rate_card_name}' rate card...")
+        
+        try:
+            response_data = await self._make_request("POST", "/v1/contract-pricing/rate-cards/list", {})
+            
+            # Search for the specified rate card
+            rate_cards = response_data.get("data", [])
+            for rate_card in rate_cards:
+                if rate_card.get("name") == rate_card_name:
+                    rate_card_id = rate_card.get("id")
+                    logger.info(f"✅ Found '{rate_card_name}' rate card: {rate_card_id}")
+                    return rate_card_id
+            
+            logger.warning(f"❌ '{rate_card_name}' rate card not found")
+            return None
+            
+        except Exception as e:
+            logger.error(f"❌ Failed to retrieve rate cards: {e}")
+            raise Exception(f"Failed to get rate cards from Metronome: {e}")
+
+    
+    async def get_or_create_prepaid_product(self) -> str:
+        """
+        Find existing 'Vocalis Credits' product or create it
+        
+        Returns:
+            Product ID for use in prepaid balance threshold configuration
+        """
+        logger.info("Looking for 'Vocalis Credits' product...")
+        
+        try:
+            # First, try to find existing product
+            # Note: We'd need a "list products" endpoint to search, but let's create directly for now
+            
+            # Create the prepaid credits product
+            payload = {
+                "name": "Vocalis Credits",
+                "type": "fixed"
+            }
+            
+            response_data = await self._make_request("POST", "/v1/contract-pricing/products/create", payload)
+            
+            # Extract product ID from response
+            product_id = response_data.get("data", {}).get("id")
+            if not product_id:
+                raise Exception("No product ID returned from Metronome")
+            
+            logger.info(f"✅ Created 'Vocalis Credits' product: {product_id}")
+            
+            return product_id
+            
+        except Exception as e:
+            logger.error(f"❌ Failed to create prepaid product: {e}")
+            raise Exception(f"Failed to create prepaid product in Metronome: {e}")
+        
+
     async def create_billing_contract(self, customer_id: str, contract_data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Create minimal billing contract for testing
+        Create enhanced billing contract with optional prepaid balance threshold
         
         Args:
             customer_id: Metronome customer ID
-            contract_data: Dict (unused for now, keeping for compatibility)
-            
+            contract_data: Dict containing:
+                - auto_recharge: Optional auto-recharge configuration
+                - amount: Purchase amount in dollars
+                
         Returns:
             Dict containing contract details
         """
-        logger.info(f"Creating minimal billing contract for customer {customer_id}")
+        logger.info(f"Creating enhanced billing contract for customer {customer_id}")
         
-        # Minimal payload with only required fields
+        # Get the rate card (defaults to "Vocalis 2025")
+        rate_card_id = await self.get_rate_card()
+        if not rate_card_id:
+            raise Exception("Vocalis 2025 rate card not found - please create it in Metronome dashboard first")
+        
+        # Base contract payload
         payload = {
             "customer_id": customer_id,
-            "starting_at": "2025-07-01T00:00:00.000Z"
+            "rate_card_id": rate_card_id,
+            "starting_at": "2025-07-01T00:00:00.000Z",
+            "name": "Vocalis Credit Contract"
         }
+        
+        # Check if auto-recharge is enabled
+        auto_recharge = contract_data.get("auto_recharge")
+        if auto_recharge and auto_recharge.get("enabled", False):
+            logger.info("Auto-recharge enabled - adding prepaid balance threshold configuration")
+            
+            # Get prepaid product ID
+            product_id = await self.get_or_create_prepaid_product()
+            
+            # Convert amounts to cents
+            threshold_cents = int(auto_recharge.get("threshold", 25000) * 0.00025 * 100)  # Credits to cents
+            recharge_cents = int(auto_recharge.get("price", 50.0) * 100)  # Dollars to cents
+            
+            # Add prepaid balance threshold configuration
+            payload["prepaid_balance_threshold_configuration"] = {
+                "commit": {
+                    "product_id": product_id,
+                    "name": "Vocalis Credits Purchase",
+                    "description": f"Auto-recharge for voice generation credits"
+                },
+                "is_enabled": True,
+                "payment_gate_config": {
+                    "payment_gate_type": "EXTERNAL"
+                },
+                "threshold_amount": threshold_cents,
+                "recharge_to_amount": recharge_cents
+            }
+            
+            logger.info(f"Threshold: ${threshold_cents/100:.2f}, Recharge to: ${recharge_cents/100:.2f}")
+        else:
+            logger.info("Auto-recharge disabled - creating basic contract")
         
         try:
             response_data = await self._make_request("POST", "/v1/contracts/create", payload)
@@ -161,18 +268,22 @@ class MetronomeClient:
             if not contract_id:
                 raise Exception("No contract ID returned from Metronome")
             
-            logger.info(f"✅ Minimal contract created: {contract_id}")
+            contract_type = "with auto-recharge" if auto_recharge and auto_recharge.get("enabled") else "basic"
+            logger.info(f"✅ Enhanced contract created {contract_type}: {contract_id}")
             
             return {
                 "id": contract_id,
                 "customer_id": customer_id,
+                "rate_card_id": rate_card_id,
+                "auto_recharge_enabled": auto_recharge and auto_recharge.get("enabled", False),
                 "status": "created"
             }
             
         except Exception as e:
             logger.error(f"❌ Failed to create contract: {e}")
             raise Exception(f"Failed to create contract in Metronome: {e}")
-
+        
+    
     async def get_customer_balance(self, customer_id: str) -> Dict[str, Any]:
         """
         Get customer's current credit balance
@@ -253,57 +364,7 @@ class MetronomeClient:
         except Exception as e:
             logger.error(f"❌ Failed to record usage event: {e}")
             raise Exception(f"Failed to record usage in Metronome: {e}")
-    
-    async def setup_auto_recharge(self, customer_id: str, recharge_config: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Setup auto-recharge configuration
-        
-        NOTE: Metronome's auto-recharge might be handled via alerts, webhooks, or billing rules.
-        Need to check their documentation for the correct approach.
-        
-        Args:
-            customer_id: Metronome customer ID
-            recharge_config: Dict containing:
-                - threshold: Credit threshold to trigger recharge
-                - amount: Recharge amount in credits
-                - price: Recharge price in dollars
-                - enabled: Boolean
-                
-        Returns:
-            Dict with auto-recharge setup confirmation
-        """
-        logger.info(f"Setting up auto-recharge for customer {customer_id}")
-        
-        if not recharge_config.get("enabled", False):
-            logger.info("Auto-recharge disabled, skipping setup")
-            return {"success": True, "enabled": False}
-        
-        payload = {
-            "customer_id": customer_id,
-            "threshold_credits": recharge_config["threshold"],
-            "recharge_amount_dollars": recharge_config["price"],
-            "recharge_amount_credits": recharge_config["amount"],
-            "enabled": True
-        }
-        
-        try:
-            # WARNING: This endpoint is speculative - need real Metronome auto-recharge docs
-            response_data = await self._make_request("POST", "/v1/auto-recharge", payload)
-            
-            logger.info(f"✅ Auto-recharge configured: {recharge_config['threshold']} credit threshold")
-            
-            return {
-                "success": True,
-                "config_id": response_data.get("data", {}).get("id"),
-                "threshold": recharge_config["threshold"],
-                "recharge_amount": recharge_config["amount"],
-                "enabled": True
-            }
-            
-        except Exception as e:
-            logger.error(f"❌ Failed to setup auto-recharge: {e}")
-            raise Exception(f"Failed to setup auto-recharge in Metronome: {e}")
-    
+       
     async def set_customer_aliases(self, customer_id: str, aliases: List[str]) -> Dict[str, Any]:
         """
         Set ingest aliases for a customer (useful for usage event tracking)
