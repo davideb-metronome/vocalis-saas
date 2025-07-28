@@ -4,14 +4,19 @@ Handle Metronome webhooks for billing events and alerts
 """
 
 from fastapi import APIRouter, HTTPException, Request
-from typing import Dict, Any
+from fastapi.responses import StreamingResponse
+from typing import Dict, Any, Set
 import hashlib
 import hmac
 import json
+import asyncio
 from datetime import datetime
+
 
 # Add this import for the Metronome client
 from app.services.metronome import metronome_client
+
+active_connections: Dict[str, Set[asyncio.Queue]] = {}
 
 router = APIRouter()
 
@@ -68,16 +73,13 @@ async def handle_metronome_alerts(request: Request):
             print(f"   ⏳ Waiting for external_initiate webhook...")
             
 
-
-# Add this to your existing handle_external_initiate section in webhooks.py
-
         elif alert_type == 'payment_gate.external_initiate':
             # 🎯 KEY WEBHOOK: Auto-recharge payment request - FAKE PAYMENT AND RELEASE
             customer_id = properties.get('customer_id')
             contract_id = properties.get('contract_id')
             invoice_id = properties.get('invoice_id')
             workflow_id = properties.get('workflow_id')
-            invoice_total = properties.get('invoice_total')  # Amount in cents
+            invoice_total = properties.get('invoice_total')
             invoice_currency = properties.get('invoice_currency')
             
             print(f"💳 AUTO-RECHARGE PAYMENT REQUEST:")
@@ -105,6 +107,37 @@ async def handle_metronome_alerts(request: Request):
                     print(f"✅ COMMIT RELEASED SUCCESSFULLY!")
                     print(f"   Customer {customer_id} now has additional credits!")
                     print(f"   Workflow {workflow_id} completed successfully")
+                    
+                    # 🚀 ADD THIS NEW SECTION - GET UPDATED BALANCE AND BROADCAST
+                    try:
+                        print(f"📊 Getting updated balance after auto-recharge...")
+                        updated_balance = await metronome_client.get_customer_balance(customer_id)
+                        new_credit_balance = updated_balance.get('balance', 0)
+                        
+                        print(f"📊 BROADCASTING BALANCE UPDATE:")
+                        print(f"   Customer: {customer_id}")
+                        print(f"   New Balance: {new_credit_balance} credits")
+                        
+                        # 🚀 BROADCAST REAL-TIME UPDATE TO FRONTEND
+                        await broadcast_event(customer_id, {
+                            "type": "balance_updated",
+                            "new_balance": new_credit_balance,
+                            "auto_recharge": True,
+                            "message": f"Auto-recharge complete! Added credits to your account.",
+                            "timestamp": datetime.now().isoformat()
+                        })
+                        
+                        print(f"✅ Real-time balance update sent to frontend!")
+                        
+                    except Exception as balance_error:
+                        print(f"⚠️ Failed to get updated balance: {balance_error}")
+                        # Still broadcast a generic update
+                        await broadcast_event(customer_id, {
+                            "type": "auto_recharge_complete",
+                            "message": "Auto-recharge completed successfully!",
+                            "timestamp": datetime.now().isoformat()
+                        })
+                    
                 else:
                     print(f"❌ Failed to release commit: {result}")
                     
@@ -112,9 +145,8 @@ async def handle_metronome_alerts(request: Request):
                 print(f"❌ AUTO-RECHARGE RELEASE FAILED: {e}")
                 print(f"   Workflow: {workflow_id}")
                 print(f"   Customer: {customer_id}")
-                
-                # Could try to release with "failed" outcome, but for demo just log the error
-            
+
+
         elif alert_type == 'alerts.usage_threshold_reached':
             print(f"📊 USAGE THRESHOLD REACHED")
             
@@ -304,6 +336,88 @@ async def handle_metronome_test(request: Request):
             "status": "error",
             "message": f"Test webhook failed: {str(e)}"
         }
+
+# Add this function to your webhooks.py file (after the broadcast_event function):
+
+@router.get("/events/{customer_id}")
+
+# Replace your customer_events function with this debug version:
+
+@router.get("/events/{customer_id}")
+async def customer_events(customer_id: str):
+    """
+    Server-Sent Events endpoint for real-time customer notifications
+    """
+    print(f"🔥 SSE ENDPOINT CALLED for customer: {customer_id}")
+    
+    async def event_stream():
+        print(f"🔥 EVENT STREAM STARTING for customer: {customer_id}")
+        
+        # Create a queue for this connection
+        queue = asyncio.Queue()
+        
+        # Add to active connections
+        if customer_id not in active_connections:
+            active_connections[customer_id] = set()
+        active_connections[customer_id].add(queue)
+        
+        print(f"🔌 SSE connection opened for customer {customer_id}")
+        print(f"🔥 ABOUT TO YIELD INITIAL EVENT")
+        
+        try:
+            # Send initial connection event
+            initial_data = json.dumps({'type': 'connected', 'message': 'Real-time updates active'})
+            initial_event = f"data: {initial_data}\n\n"
+            print(f"🔥 YIELDING: {initial_event}")
+            yield initial_event
+            
+            print(f"🔥 INITIAL EVENT YIELDED, STARTING EVENT LOOP")
+            
+            # Listen for events
+            while True:
+                try:
+                    # Wait for event with timeout to send keep-alive
+                    event_data = await asyncio.wait_for(queue.get(), timeout=30.0)
+                    event_str = f"data: {json.dumps(event_data)}\n\n"
+                    print(f"🔥 YIELDING EVENT: {event_str}")
+                    yield event_str
+                except asyncio.TimeoutError:
+                    # Send keep-alive ping
+                    ping_data = json.dumps({'type': 'ping'})
+                    ping_event = f"data: {ping_data}\n\n"
+                    print(f"🔥 YIELDING PING: {ping_event}")
+                    yield ping_event
+                    
+        except asyncio.CancelledError:
+            # Connection closed
+            print(f"🔌 SSE connection closed for customer {customer_id}")
+        except Exception as e:
+            print(f"❌ SSE ERROR: {e}")
+        finally:
+            # Clean up connection
+            if customer_id in active_connections:
+                active_connections[customer_id].discard(queue)
+                if not active_connections[customer_id]:
+                    del active_connections[customer_id]
+            print(f"🔥 SSE CLEANUP COMPLETE for customer {customer_id}")
+    
+    print(f"🔥 RETURNING STREAMING RESPONSE")
+    return StreamingResponse(event_stream(), media_type="text/plain")
+
+async def broadcast_event(customer_id: str, event_data: dict):
+    """
+    Broadcast an event to all active connections for a customer
+    """
+    if customer_id in active_connections:
+        print(f"📡 Broadcasting to {len(active_connections[customer_id])} connections for customer {customer_id}")
+        # Send to all active connections for this customer
+        for queue in active_connections[customer_id]:
+            try:
+                await queue.put(event_data)
+            except Exception as e:
+                print(f"Failed to send event to queue: {e}")
+    else:
+        print(f"📡 No active connections for customer {customer_id}")
 
 # TODO: Add webhook signature verification function
 def verify_webhook_signature(signature: str, date_header: str, body: bytes, secret_key: str) -> bool:

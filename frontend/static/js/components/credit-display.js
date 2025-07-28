@@ -1,13 +1,12 @@
 /**
  * Credit Display Component
- * Manages credit balance display and auto-recharge info
+ * Manages credit balance display and auto-recharge info with real-time updates
  */
-
-// Update the CreditDisplayManager in frontend/static/js/components/credit-display.js
 
 class CreditDisplayManager {
     constructor() {
         this.CREDIT_RATE = 0.00025; // $0.00025 per credit
+        this.eventSource = null; // For SSE connection
 
         this.elements = {
             creditsBalance: document.getElementById('credits-balance'),
@@ -31,7 +30,10 @@ class CreditDisplayManager {
         // Setup auto-recharge info
         this.setupAutoRechargeInfo();
 
-        console.log('✅ Credit display manager initialized');
+        // 🚀 Start real-time updates
+        this.startRealTimeUpdates();
+
+        console.log('✅ Credit display manager initialized with real-time updates');
     }
 
     async loadRealBalance() {
@@ -148,6 +150,7 @@ class CreditDisplayManager {
         // Add visual indicator of data source
         if (this.elements.creditsBalance) {
             const indicator = source === 'metronome_api' ? '🟢' : 
+                            source === 'real_time_update' ? '🔴' :
                             source === 'demo' ? '🟡' : '🔴';
             this.elements.creditsBalance.title = `${indicator} Data source: ${source}`;
         }
@@ -180,6 +183,109 @@ class CreditDisplayManager {
         }
     }
 
+    startRealTimeUpdates() {
+  const customerId = sessionStorage.getItem('vocalis_customer_id');
+    
+    if (!customerId) {
+        console.log('⚠️ No customer ID found, skipping real-time updates');
+        return;
+    }
+
+    try {
+        console.log('🚀 Starting real-time balance updates...');
+        console.log('🔗 Customer ID:', customerId);
+        
+        const sseUrl = `/api/webhooks/events/${customerId}`;
+        console.log('🔗 Connecting to SSE:', sseUrl);
+        
+        this.eventSource = new EventSource(sseUrl);
+        
+        // 🚀 ADD MORE DEBUG LOGGING:
+        this.eventSource.onmessage = (event) => {
+            console.log('🔥 RAW SSE EVENT RECEIVED:', event);
+            console.log('🔥 RAW EVENT DATA:', event.data);
+            
+            try {
+                const data = JSON.parse(event.data);
+                console.log('🔥 PARSED EVENT DATA:', data);
+                this.handleRealTimeEvent(data);
+            } catch (error) {
+                console.error('❌ Failed to parse SSE event:', error);
+                console.error('❌ Raw data that failed:', event.data);
+            }
+        };
+        
+        this.eventSource.onopen = () => {
+            console.log('✅ Real-time updates connected');
+            console.log('🔥 SSE ReadyState:', this.eventSource.readyState);
+            notifications.info('🔄 Real-time balance updates active');
+        };
+        
+        this.eventSource.onerror = (error) => {
+            console.log('❌ Real-time updates connection error:', error);
+            console.log('🔥 SSE ReadyState:', this.eventSource.readyState);
+            console.log('🔄 SSE will automatically reconnect...');
+        };
+        
+    } catch (error) {
+        console.error('Failed to start real-time updates:', error);
+    }
+}
+
+    handleRealTimeEvent(data) {
+        console.log('📡 Real-time event received:', data);
+        
+        switch (data.type) {
+            case 'connected':
+                console.log('🔄 SSE connection established');
+                break;
+                
+            case 'balance_updated':
+                console.log('💰 Balance update received:', data.new_balance);
+                
+                // Update the display with new balance
+                this.updateCreditsDisplay(data.new_balance, data.new_balance, 0, 'real_time_update');
+                
+                // Show notification
+                if (data.auto_recharge) {
+                    notifications.success(`🎉 Auto-recharge complete! Your balance has been updated to ${data.new_balance.toLocaleString()} credits`);
+                } else {
+                    notifications.info(`💰 Balance updated: ${data.new_balance.toLocaleString()} credits`);
+                }
+                break;
+                
+            case 'auto_recharge_complete':
+                console.log('🔄 Auto-recharge completed');
+                notifications.success('🎉 Auto-recharge completed successfully!');
+                
+                // Refresh balance to get the latest data
+                setTimeout(() => {
+                    this.loadRealBalance();
+                }, 2000);
+                break;
+            
+            case 'auto_recharge_failed':
+                console.log('❌ Auto-recharge failed');
+                notifications.error('❌ Auto-recharge failed. Please update your payment method.');
+                break;
+                
+            case 'ping':
+                // Keep-alive ping, do nothing
+                break;
+                
+            default:
+                console.log('📡 Unknown event type:', data.type);
+        }
+    }
+
+    destroy() {
+        if (this.eventSource) {
+            console.log('🔌 Closing real-time updates connection');
+            this.eventSource.close();
+            this.eventSource = null;
+        }
+    }
+
     async refreshBalance() {
         try {
             console.log('🔄 Refreshing credit balance...');
@@ -201,6 +307,12 @@ class CreditDisplayManager {
     }
 }
 
-
 // Export for use in other modules
 window.CreditDisplayManager = CreditDisplayManager;
+
+// Clean up on page unload
+window.addEventListener('beforeunload', () => {
+    if (window.creditDisplayManager) {
+        window.creditDisplayManager.destroy();
+    }
+});

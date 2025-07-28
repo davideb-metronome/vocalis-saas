@@ -12,6 +12,11 @@ import uvicorn
 from .api import auth, billing, usage, webhooks
 from .core.config import settings
 
+from fastapi.responses import StreamingResponse
+import asyncio
+import json
+from typing import Dict, Set
+
 # Initialize FastAPI app
 app = FastAPI(
     title="Vocalis SaaS API",
@@ -61,6 +66,63 @@ async def dashboard_page(request: Request):
 @app.get("/health")
 async def health_check():
     return {"status": "healthy", "service": "vocalis-saas"}
+
+
+# Global storage for active SSE connections (use Redis in production)
+active_connections: Dict[str, Set[asyncio.Queue]] = {}
+
+@app.get("/api/events/{customer_id}")
+async def customer_events(customer_id: str):
+    """
+    Server-Sent Events endpoint for real-time customer notifications
+    """
+    async def event_stream():
+        # Create a queue for this connection
+        queue = asyncio.Queue()
+        
+        # Add to active connections
+        if customer_id not in active_connections:
+            active_connections[customer_id] = set()
+        active_connections[customer_id].add(queue)
+        
+        try:
+            # Send initial connection event
+            yield f"data: {json.dumps({'type': 'connected', 'message': 'Real-time updates active'})}\n\n"
+            
+            # Listen for events
+            while True:
+                try:
+                    # Wait for event with timeout to send keep-alive
+                    event_data = await asyncio.wait_for(queue.get(), timeout=30.0)
+                    yield f"data: {json.dumps(event_data)}\n\n"
+                except asyncio.TimeoutError:
+                    # Send keep-alive ping
+                    yield f"data: {json.dumps({'type': 'ping'})}\n\n"
+                    
+        except asyncio.CancelledError:
+            # Connection closed
+            pass
+        finally:
+            # Clean up connection
+            if customer_id in active_connections:
+                active_connections[customer_id].discard(queue)
+                if not active_connections[customer_id]:
+                    del active_connections[customer_id]
+    
+    return StreamingResponse(event_stream(), media_type="text/plain")
+
+async def broadcast_event(customer_id: str, event_data: dict):
+    """
+    Broadcast an event to all active connections for a customer
+    """
+    if customer_id in active_connections:
+        # Send to all active connections for this customer
+        for queue in active_connections[customer_id]:
+            try:
+                await queue.put(event_data)
+            except Exception as e:
+                print(f"Failed to send event to queue: {e}")
+
 
 if __name__ == "__main__":
     uvicorn.run(
