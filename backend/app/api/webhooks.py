@@ -344,9 +344,14 @@ async def handle_metronome_test(request: Request):
 # Replace your customer_events function with this debug version:
 
 @router.get("/events/{customer_id}")
+
+# Add this to your webhooks.py - FIXED SSE endpoint with proper headers
+
+@router.get("/events/{customer_id}")
 async def customer_events(customer_id: str):
     """
     Server-Sent Events endpoint for real-time customer notifications
+    ✅ FIXED: Added proper SSE headers and CORS support
     """
     print(f"🔥 SSE ENDPOINT CALLED for customer: {customer_id}")
     
@@ -402,7 +407,23 @@ async def customer_events(customer_id: str):
             print(f"🔥 SSE CLEANUP COMPLETE for customer {customer_id}")
     
     print(f"🔥 RETURNING STREAMING RESPONSE")
-    return StreamingResponse(event_stream(), media_type="text/plain")
+    
+    # ✅ FIXED: Return StreamingResponse with proper SSE headers
+    return StreamingResponse(
+        event_stream(), 
+        media_type="text/plain",
+        headers={
+            # Critical SSE headers
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "Content-Type": "text/event-stream",
+            
+            # CORS headers for SSE
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET",
+            "Access-Control-Allow-Headers": "Cache-Control",
+        }
+    )
 
 async def broadcast_event(customer_id: str, event_data: dict):
     """

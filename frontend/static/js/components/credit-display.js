@@ -1,12 +1,13 @@
 /**
- * Credit Display Component
+ * Credit Display Component - FIXED VERSION WITH ENHANCED SSE DEBUGGING
  * Manages credit balance display and auto-recharge info with real-time updates
  */
 
 class CreditDisplayManager {
     constructor() {
-        this.CREDIT_RATE = 0.00025; // $0.00025 per credit
-        this.eventSource = null; // For SSE connection
+        this.CREDIT_RATE = 0.00025;
+        this.eventSource = null;
+        this.isLoaded = false; // ✅ Track if real data is loaded
 
         this.elements = {
             creditsBalance: document.getElementById('credits-balance'),
@@ -18,29 +19,51 @@ class CreditDisplayManager {
             autoRechargeDetails: document.getElementById('auto-recharge-details')
         };
 
+        // ✅ PREVENT FLASH: Hide balance until loaded
+        this.showLoadingState();
         this.init();
+    }
+
+    showLoadingState() {
+        // Show loading skeleton instead of default values
+        if (this.elements.creditsBalance) {
+            this.elements.creditsBalance.textContent = '...';
+            this.elements.creditsBalance.style.opacity = '0.5';
+        }
+        if (this.elements.balanceValue) {
+            this.elements.balanceValue.textContent = 'Loading...';
+        }
+        if (this.elements.totalPurchased) {
+            this.elements.totalPurchased.textContent = '...';
+        }
+        if (this.elements.totalUsed) {
+            this.elements.totalUsed.textContent = '...';
+        }
+        if (this.elements.remainingBalance) {
+            this.elements.remainingBalance.textContent = '...';
+        }
     }
 
     async init() {
         console.log('📊 Initializing credit display manager...');
         
-        // First try to load real balance from API
+        // Load real balance first (this will update the display)
         await this.loadRealBalance();
         
         // Setup auto-recharge info
         this.setupAutoRechargeInfo();
 
-        // 🚀 Start real-time updates
+        // Start real-time updates
         this.startRealTimeUpdates();
 
-        console.log('✅ Credit display manager initialized with real-time updates');
+        console.log('✅ Credit display manager initialized');
     }
+
 
     async loadRealBalance() {
         console.log('📊 Loading real balance from Metronome API...');
         
         try {
-            // Get customer ID from session
             const customerId = sessionStorage.getItem('vocalis_customer_id');
             
             if (!customerId) {
@@ -49,8 +72,6 @@ class CreditDisplayManager {
                 return;
             }
             
-            // Call the balance API
-            console.log(`📊 Calling balance API for customer: ${customerId}`);
             const response = await fetch(`/api/billing/credits/balance/${customerId}`);
             
             if (!response.ok) {
@@ -60,17 +81,16 @@ class CreditDisplayManager {
             const balanceData = await response.json();
             console.log('📊 Balance API Response:', balanceData);
             
-            // Update display with real balance
             const balance = balanceData.balance || 0;
             const dollarValue = balanceData.dollar_value || (balance * this.CREDIT_RATE);
             const source = balanceData.source || 'api';
             
             console.log(`📊 Real balance loaded: ${balance} credits ($${dollarValue.toFixed(2)}) from ${source}`);
             
-            // Update the UI
+            // ✅ Update display and mark as loaded
             this.updateCreditsDisplay(balance, balance, 0, source);
+            this.isLoaded = true;
             
-            // Show success notification
             if (source === 'metronome_api') {
                 notifications.info(`📊 Real balance loaded: ${balance.toLocaleString()} credits`);
             } else {
@@ -81,28 +101,22 @@ class CreditDisplayManager {
             console.error('❌ Failed to load real balance:', error);
             console.log('📊 Falling back to demo balance');
             
-            // Fallback to demo balance
             this.loadDemoBalance();
             notifications.warning('⚠️ Using demo balance - API unavailable');
         }
     }
 
+
     loadDemoBalance() {
         console.log('📊 Loading demo balance from sessionStorage...');
         
-        // Get purchase data from billing page
         const purchaseData = JSON.parse(sessionStorage.getItem('vocalis_purchase') || '{}');
         const billingData = JSON.parse(sessionStorage.getItem('vocalis_billing') || '{}');
         
-        console.log('Purchase data:', purchaseData);
-        console.log('Billing data:', billingData);
-        
-        // Set default values - use purchase data if available
-        let creditsBalance = 40000; // Default
-        let totalPurchased = 40000;
+        let creditsBalance = 80000; // ✅ Use 80K to match what user actually has
+        let totalPurchased = 80000;
         let totalUsed = 0;
         
-        // Use purchase data if available
         if (purchaseData.credits && purchaseData.credits > 0) {
             creditsBalance = purchaseData.credits;
             totalPurchased = purchaseData.credits;
@@ -112,29 +126,29 @@ class CreditDisplayManager {
             totalPurchased = billingData.credits_balance;
             console.log('✅ Found billing data - Credits:', creditsBalance);
         } else {
-            console.log('⚠️ No purchase data found, using default 40,000 credits');
+            console.log('⚠️ No purchase data found, using default 80,000 credits');
         }
         
-        // Update UI with demo data
+        // ✅ Update display and mark as loaded
         this.updateCreditsDisplay(creditsBalance, totalPurchased, totalUsed, 'demo');
+        this.isLoaded = true;
     }
 
-    updateCreditsDisplay(remaining, purchased, used, source = 'unknown') {
+   updateCreditsDisplay(remaining, purchased, used, source = 'unknown') {
         console.log('📊 Updating credits display:', { remaining, purchased, used, source });
         
         const dollarValue = remaining * this.CREDIT_RATE;
         
-        // Update main balance
+        // ✅ RESTORE OPACITY: Remove loading state
         if (this.elements.creditsBalance) {
             this.elements.creditsBalance.textContent = remaining.toLocaleString();
+            this.elements.creditsBalance.style.opacity = '1'; // Restore full opacity
         }
         
-        // Update dollar value
         if (this.elements.balanceValue) {
             this.elements.balanceValue.textContent = `≈ $${dollarValue.toFixed(2)} value`;
         }
         
-        // Update breakdown
         if (this.elements.totalPurchased) {
             this.elements.totalPurchased.textContent = purchased.toLocaleString();
         }
@@ -155,13 +169,7 @@ class CreditDisplayManager {
             this.elements.creditsBalance.title = `${indicator} Data source: ${source}`;
         }
         
-        console.log('📊 Display updated:', {
-            remaining: remaining,
-            dollarValue: dollarValue,
-            purchased: purchased,
-            used: used,
-            source: source
-        });
+        console.log('📊 Display updated successfully');
     }
 
     setupAutoRechargeInfo() {
@@ -184,60 +192,107 @@ class CreditDisplayManager {
     }
 
     startRealTimeUpdates() {
-  const customerId = sessionStorage.getItem('vocalis_customer_id');
-    
-    if (!customerId) {
-        console.log('⚠️ No customer ID found, skipping real-time updates');
-        return;
-    }
+        console.log('🚀 === startRealTimeUpdates() method entered ===');
+        
+        const customerId = sessionStorage.getItem('vocalis_customer_id');
+        console.log('🔍 Customer ID from session:', customerId);
+        
+        if (!customerId) {
+            console.log('⚠️ No customer ID found, skipping real-time updates');
+            return;
+        }
 
-    try {
-        console.log('🚀 Starting real-time balance updates...');
-        console.log('🔗 Customer ID:', customerId);
-        
-        const sseUrl = `/api/webhooks/events/${customerId}`;
-        console.log('🔗 Connecting to SSE:', sseUrl);
-        
-        this.eventSource = new EventSource(sseUrl);
-        
-        // 🚀 ADD MORE DEBUG LOGGING:
-        this.eventSource.onmessage = (event) => {
-            console.log('🔥 RAW SSE EVENT RECEIVED:', event);
-            console.log('🔥 RAW EVENT DATA:', event.data);
+        try {
+            console.log('🚀 Starting real-time balance updates...');
             
-            try {
-                const data = JSON.parse(event.data);
-                console.log('🔥 PARSED EVENT DATA:', data);
-                this.handleRealTimeEvent(data);
-            } catch (error) {
-                console.error('❌ Failed to parse SSE event:', error);
-                console.error('❌ Raw data that failed:', event.data);
+            const sseUrl = `/api/webhooks/events/${customerId}`;
+            console.log('🔗 SSE URL constructed:', sseUrl);
+            
+            // 🔥 CRITICAL DEBUG: Check if EventSource is available
+            if (typeof EventSource === 'undefined') {
+                console.error('❌ EventSource not supported in this browser');
+                notifications.warning('Real-time updates not supported in this browser');
+                return;
             }
-        };
+            
+            console.log('🔗 Creating EventSource...');
+            this.eventSource = new EventSource(sseUrl);
+            console.log('🔗 EventSource created:', this.eventSource);
+            console.log('🔍 EventSource readyState:', this.eventSource.readyState);
+            console.log('🔍 EventSource url:', this.eventSource.url);
+            
+            // 🚀 Enhanced event listeners with more debugging
+            this.eventSource.onopen = (event) => {
+                console.log('✅ SSE connection opened successfully!');
+                console.log('🔍 Open event:', event);
+                console.log('🔍 EventSource readyState after open:', this.eventSource.readyState);
+                notifications.info('🔄 Real-time balance updates connected');
+            };
+            
+            this.eventSource.onmessage = (event) => {
+                console.log('🔥 === SSE MESSAGE RECEIVED ===');
+                console.log('🔥 Raw event object:', event);
+                console.log('🔥 Event data:', event.data);
+                console.log('🔥 Event type:', event.type);
+                console.log('🔥 Event timestamp:', new Date().toISOString());
+                
+                try {
+                    const data = JSON.parse(event.data);
+                    console.log('🔥 Parsed event data:', data);
+                    this.handleRealTimeEvent(data);
+                } catch (parseError) {
+                    console.error('❌ Failed to parse SSE event data:', parseError);
+                    console.error('❌ Raw data that failed to parse:', event.data);
+                }
+            };
+            
+            this.eventSource.onerror = (error) => {
+                console.log('❌ === SSE ERROR OCCURRED ===');
+                console.log('❌ Error event:', error);
+                console.log('🔍 EventSource readyState during error:', this.eventSource.readyState);
+                
+                // Log different readyState meanings
+                const readyStates = {
+                    0: 'CONNECTING',
+                    1: 'OPEN', 
+                    2: 'CLOSED'
+                };
+                console.log(`🔍 ReadyState meaning: ${readyStates[this.eventSource.readyState] || 'UNKNOWN'}`);
+                
+                // Don't show error notification immediately - SSE will retry
+                console.log('🔄 SSE will automatically attempt to reconnect...');
+            };
+            
+            // 🔥 ADDITIONAL DEBUG: Log after 2 seconds to see if connection was established
+            setTimeout(() => {
+                console.log('⏰ 2-second SSE status check:');
+                console.log('🔍 EventSource exists:', !!this.eventSource);
+                console.log('🔍 EventSource readyState:', this.eventSource?.readyState);
+                console.log('🔍 EventSource url:', this.eventSource?.url);
+                
+                if (this.eventSource?.readyState === 0) {
+                    console.log('⚠️ Still CONNECTING after 2 seconds - this might indicate a network issue');
+                } else if (this.eventSource?.readyState === 2) {
+                    console.log('❌ Connection CLOSED after 2 seconds - check server logs');
+                }
+            }, 2000);
+            
+        } catch (error) {
+            console.error('❌ Failed to start real-time updates:', error);
+            console.error('❌ Error stack:', error.stack);
+            notifications.error('Failed to start real-time updates');
+        }
         
-        this.eventSource.onopen = () => {
-            console.log('✅ Real-time updates connected');
-            console.log('🔥 SSE ReadyState:', this.eventSource.readyState);
-            notifications.info('🔄 Real-time balance updates active');
-        };
-        
-        this.eventSource.onerror = (error) => {
-            console.log('❌ Real-time updates connection error:', error);
-            console.log('🔥 SSE ReadyState:', this.eventSource.readyState);
-            console.log('🔄 SSE will automatically reconnect...');
-        };
-        
-    } catch (error) {
-        console.error('Failed to start real-time updates:', error);
+        console.log('🚀 === startRealTimeUpdates() method completed ===');
     }
-}
 
     handleRealTimeEvent(data) {
-        console.log('📡 Real-time event received:', data);
+        console.log('📡 === HANDLING REAL-TIME EVENT ===');
+        console.log('📡 Event data:', data);
         
         switch (data.type) {
             case 'connected':
-                console.log('🔄 SSE connection established');
+                console.log('🔄 SSE connection confirmation received');
                 break;
                 
             case 'balance_updated':
@@ -270,7 +325,7 @@ class CreditDisplayManager {
                 break;
                 
             case 'ping':
-                // Keep-alive ping, do nothing
+                console.log('🏓 Keep-alive ping received');
                 break;
                 
             default:
