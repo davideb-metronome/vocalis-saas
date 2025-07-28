@@ -3,6 +3,8 @@
  * Manages credit balance display and auto-recharge info
  */
 
+// Update the CreditDisplayManager in frontend/static/js/components/credit-display.js
+
 class CreditDisplayManager {
     constructor() {
         this.CREDIT_RATE = 0.00025; // $0.00025 per credit
@@ -20,16 +22,71 @@ class CreditDisplayManager {
         this.init();
     }
 
-    init() {
-        // Load initial data
-        this.loadPurchaseData();
+    async init() {
+        console.log('📊 Initializing credit display manager...');
+        
+        // First try to load real balance from API
+        await this.loadRealBalance();
+        
+        // Setup auto-recharge info
         this.setupAutoRechargeInfo();
 
         console.log('✅ Credit display manager initialized');
     }
 
-    loadPurchaseData() {
-        console.log('📊 Loading purchase data from sessionStorage...');
+    async loadRealBalance() {
+        console.log('📊 Loading real balance from Metronome API...');
+        
+        try {
+            // Get customer ID from session
+            const customerId = sessionStorage.getItem('vocalis_customer_id');
+            
+            if (!customerId) {
+                console.log('⚠️ No customer ID found, using demo balance');
+                this.loadDemoBalance();
+                return;
+            }
+            
+            // Call the balance API
+            console.log(`📊 Calling balance API for customer: ${customerId}`);
+            const response = await fetch(`/api/billing/credits/balance/${customerId}`);
+            
+            if (!response.ok) {
+                throw new Error(`Balance API failed: ${response.status}`);
+            }
+            
+            const balanceData = await response.json();
+            console.log('📊 Balance API Response:', balanceData);
+            
+            // Update display with real balance
+            const balance = balanceData.balance || 0;
+            const dollarValue = balanceData.dollar_value || (balance * this.CREDIT_RATE);
+            const source = balanceData.source || 'api';
+            
+            console.log(`📊 Real balance loaded: ${balance} credits ($${dollarValue.toFixed(2)}) from ${source}`);
+            
+            // Update the UI
+            this.updateCreditsDisplay(balance, balance, 0, source);
+            
+            // Show success notification
+            if (source === 'metronome_api') {
+                notifications.info(`📊 Real balance loaded: ${balance.toLocaleString()} credits`);
+            } else {
+                notifications.warning(`⚠️ Using ${source} balance: ${balance.toLocaleString()} credits`);
+            }
+            
+        } catch (error) {
+            console.error('❌ Failed to load real balance:', error);
+            console.log('📊 Falling back to demo balance');
+            
+            // Fallback to demo balance
+            this.loadDemoBalance();
+            notifications.warning('⚠️ Using demo balance - API unavailable');
+        }
+    }
+
+    loadDemoBalance() {
+        console.log('📊 Loading demo balance from sessionStorage...');
         
         // Get purchase data from billing page
         const purchaseData = JSON.parse(sessionStorage.getItem('vocalis_purchase') || '{}');
@@ -38,8 +95,8 @@ class CreditDisplayManager {
         console.log('Purchase data:', purchaseData);
         console.log('Billing data:', billingData);
         
-        // Set default values - always start with 40,000 credits for demo
-        let creditsBalance = 40000; // Default $10 purchase
+        // Set default values - use purchase data if available
+        let creditsBalance = 40000; // Default
         let totalPurchased = 40000;
         let totalUsed = 0;
         
@@ -54,33 +111,15 @@ class CreditDisplayManager {
             console.log('✅ Found billing data - Credits:', creditsBalance);
         } else {
             console.log('⚠️ No purchase data found, using default 40,000 credits');
-            // Set default data in sessionStorage for consistency
-            sessionStorage.setItem('vocalis_purchase', JSON.stringify({
-                credits: 40000,
-                amount: 10,
-                billing_type: 'prepaid_credits'
-            }));
-            sessionStorage.setItem('vocalis_billing', JSON.stringify({
-                billing_type: 'prepaid_credits',
-                credits_balance: 40000
-            }));
         }
         
-        // Update UI with purchase data
-        this.updateCreditsDisplay(creditsBalance, totalPurchased, totalUsed);
-        
-        console.log('📊 Credits loaded:', {
-            balance: creditsBalance,
-            purchased: totalPurchased,
-            used: totalUsed
-        });
+        // Update UI with demo data
+        this.updateCreditsDisplay(creditsBalance, totalPurchased, totalUsed, 'demo');
     }
 
-    updateCreditsDisplay(totalPurchased, purchased, used) {
-        console.log('📊 Updating credits display:', { totalPurchased, purchased, used });
+    updateCreditsDisplay(remaining, purchased, used, source = 'unknown') {
+        console.log('📊 Updating credits display:', { remaining, purchased, used, source });
         
-        // Calculate remaining balance
-        const remaining = totalPurchased - used;
         const dollarValue = remaining * this.CREDIT_RATE;
         
         // Update main balance
@@ -95,7 +134,7 @@ class CreditDisplayManager {
         
         // Update breakdown
         if (this.elements.totalPurchased) {
-            this.elements.totalPurchased.textContent = totalPurchased.toLocaleString();
+            this.elements.totalPurchased.textContent = purchased.toLocaleString();
         }
         
         if (this.elements.totalUsed) {
@@ -106,11 +145,19 @@ class CreditDisplayManager {
             this.elements.remainingBalance.textContent = remaining.toLocaleString();
         }
         
+        // Add visual indicator of data source
+        if (this.elements.creditsBalance) {
+            const indicator = source === 'metronome_api' ? '🟢' : 
+                            source === 'demo' ? '🟡' : '🔴';
+            this.elements.creditsBalance.title = `${indicator} Data source: ${source}`;
+        }
+        
         console.log('📊 Display updated:', {
             remaining: remaining,
             dollarValue: dollarValue,
-            totalPurchased: totalPurchased,
-            used: used
+            purchased: purchased,
+            used: used,
+            source: source
         });
     }
 
@@ -135,15 +182,8 @@ class CreditDisplayManager {
 
     async refreshBalance() {
         try {
-            // In a real app, this would call the API to get updated balance
-            // For now, we'll simulate usage by updating the display
-            
             console.log('🔄 Refreshing credit balance...');
-            
-            // This would be: const result = await vocalisAPI.getCreditBalance();
-            // For demo, we'll update from stored data
-            this.loadPurchaseData();
-            
+            await this.loadRealBalance();
         } catch (error) {
             console.error('Failed to refresh balance:', error);
         }
@@ -160,6 +200,7 @@ class CreditDisplayManager {
         }).format(amount);
     }
 }
+
 
 // Export for use in other modules
 window.CreditDisplayManager = CreditDisplayManager;
