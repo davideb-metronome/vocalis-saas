@@ -16,6 +16,7 @@ from fastapi.responses import StreamingResponse
 import asyncio
 import json
 from typing import Dict, Set
+from app.services.metronome import metronome_client
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -61,7 +62,20 @@ async def billing_page(request: Request):
 
 @app.get("/dashboard", response_class=HTMLResponse)
 async def dashboard_page(request: Request):
-    return templates.TemplateResponse("pages/dashboard.html", {"request": request})
+    try:
+        # Get balance from API
+        customer_id = "94565e70-f64d-4092-b733-c95da7a9d024"  
+        balance_data = await metronome_client.get_customer_balance(customer_id)
+        balance = balance_data.get('balance', 80000)
+    except Exception as e:
+        # Fallback if API fails
+        print(f"❌ Dashboard balance error: {e}")
+        balance = 80000
+    
+    return templates.TemplateResponse("pages/dashboard.html", {
+        "request": request,
+        "balance": balance
+    })
 
 @app.get("/health")
 async def health_check():
