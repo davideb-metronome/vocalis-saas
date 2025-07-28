@@ -86,7 +86,11 @@ class MetronomeClient:
                         f"Metronome API request failed: {response.status_code} - {error_detail}"
                     )
                 
-                response_data = response.json()
+                response_text = response.text.strip()
+                if response_text:
+                    response_data = response.json()  # Parse JSON if there's content
+                else:
+                    response_data = {"status": "success"}  # Create fake response for empty body
                 logger.debug(f"Response data: {response_data}")
                 return response_data
                 
@@ -467,17 +471,11 @@ class MetronomeClient:
                 "last_updated": datetime.now().isoformat(),
                 "source": "error_fallback"
             }
-    
+
     async def release_threshold_billing(self, workflow_id: str, outcome: str) -> Dict[str, Any]:
         """
-        Release external payment gate threshold commit
-        
-        Args:
-            workflow_id: The workflow ID from the external_initiate webhook
-            outcome: "paid" or "failed" - the result of the external payment
-            
-        Returns:
-            Dict containing release confirmation
+        ✅ FIXED: Release external payment gate threshold commit
+        Handles empty response bodies from Metronome API
         """
         logger.info(f"Releasing threshold billing workflow {workflow_id} with outcome: {outcome}")
         

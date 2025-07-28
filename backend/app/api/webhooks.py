@@ -67,8 +67,12 @@ async def handle_metronome_alerts(request: Request):
             print(f"   Contract: {contract_id}")
             print(f"   ⏳ Waiting for external_initiate webhook...")
             
+
+
+# Add this to your existing handle_external_initiate section in webhooks.py
+
         elif alert_type == 'payment_gate.external_initiate':
-            # 🎯 KEY WEBHOOK: Auto-recharge payment request
+            # 🎯 KEY WEBHOOK: Auto-recharge payment request - FAKE PAYMENT AND RELEASE
             customer_id = properties.get('customer_id')
             contract_id = properties.get('contract_id')
             invoice_id = properties.get('invoice_id')
@@ -83,7 +87,33 @@ async def handle_metronome_alerts(request: Request):
             print(f"   Workflow: {workflow_id}")
             print(f"   Amount: {invoice_total} cents (${invoice_total/100:.2f})")
             print(f"   Currency: {invoice_currency}")
-            print(f"   📝 TODO: Implement payment processing and workflow release")
+            
+            if not workflow_id:
+                print("❌ No workflow_id provided - cannot process payment")
+                return {
+                    "status": "error",
+                    "message": "Missing workflow_id"
+                }
+            
+            try:
+                # 💳 FAKE THE PAYMENT - Just release with "paid" outcome
+                print(f"💳 FAKING PAYMENT SUCCESS - Releasing commit...")
+                
+                result = await metronome_client.release_threshold_billing(workflow_id, "paid")
+                
+                if result.get('success'):
+                    print(f"✅ COMMIT RELEASED SUCCESSFULLY!")
+                    print(f"   Customer {customer_id} now has additional credits!")
+                    print(f"   Workflow {workflow_id} completed successfully")
+                else:
+                    print(f"❌ Failed to release commit: {result}")
+                    
+            except Exception as e:
+                print(f"❌ AUTO-RECHARGE RELEASE FAILED: {e}")
+                print(f"   Workflow: {workflow_id}")
+                print(f"   Customer: {customer_id}")
+                
+                # Could try to release with "failed" outcome, but for demo just log the error
             
         elif alert_type == 'alerts.usage_threshold_reached':
             print(f"📊 USAGE THRESHOLD REACHED")
