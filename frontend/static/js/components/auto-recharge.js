@@ -6,7 +6,7 @@
 class AutoRechargeManager {
     constructor(calculator) {
         this.calculator = calculator;
-        this.METRONOME_MIN_AMOUNT = 22.50; // Minimum auto-recharge amount
+        this.METRONOME_MIN_AMOUNT = 0; // Minimum auto-recharge amount
         this.enabled = false;
         this.selectedThreshold = '25000';
         this.selectedRechargeAmount = { credits: '200000', price: '50.00' };
@@ -139,6 +139,7 @@ class AutoRechargeManager {
         });
     }
 
+    
     validateConfiguration(purchaseAmount = null) {
         if (!this.enabled) {
             this.hideWarning();
@@ -156,19 +157,21 @@ class AutoRechargeManager {
             this.showWarning(
                 `Auto-recharge amount (${this.calculator.formatCurrency(rechargeDollars)}) is below Metronome's minimum requirement of ${this.calculator.formatCurrency(this.METRONOME_MIN_AMOUNT)}. Please increase the auto-recharge amount.`
             );
-            return false;
+            return false; // Still block for this - it's a hard requirement
         }
 
-        // Check for immediate trigger risk if purchase amount provided
+        // ✅ FIXED: Check for immediate trigger risk but don't block - just warn
         if (purchaseAmount && thresholdDollars >= purchaseAmount * 0.85) {
             this.showWarning(
                 `Warning: Your threshold (${this.calculator.formatCurrency(thresholdDollars)}) is close to your purchase amount (${this.calculator.formatCurrency(purchaseAmount)}). Auto-recharge may trigger immediately, charging an additional ${this.calculator.formatCurrency(rechargeDollars)}. Total charge would be ${this.calculator.formatCurrency(purchaseAmount + rechargeDollars)}.`
             );
-            return false;
+            // ✅ CHANGED: Don't return false - just show warning and allow purchase
+            // return false; // ← REMOVED THIS LINE
+        } else {
+            this.hideWarning();
         }
         
-        this.hideWarning();
-        return true;
+        return true; // ✅ Always return true (allow purchase) unless it's the hard minimum requirement
     }
 
     showWarning(message) {

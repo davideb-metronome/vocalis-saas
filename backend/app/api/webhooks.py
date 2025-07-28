@@ -8,18 +8,24 @@ from typing import Dict, Any
 import hashlib
 import hmac
 import json
+from datetime import datetime
+
+# Add this import for the Metronome client
+from app.services.metronome import metronome_client
 
 router = APIRouter()
 
 @router.post("/metronome/alerts")
 async def handle_metronome_alerts(request: Request):
     """
-    Handle Metronome alert webhooks
+    ✅ ENHANCED: Handle Metronome alert webhooks with auto-recharge processing
     
     Common alert types:
     - alerts.low_remaining_credit_balance_reached
     - alerts.usage_threshold_reached
     - alerts.spend_threshold_reached
+    - payment_gate.threshold_reached
+    - payment_gate.external_initiate ← KEY: Auto-recharge payment request
     """
     try:
         # Get headers for verification
@@ -52,8 +58,32 @@ async def handle_metronome_alerts(request: Request):
             print(f"   Remaining: {remaining_balance} credits")
             print(f"   Threshold: {threshold} credits")
             
-            # TODO: Trigger auto-recharge logic here
-            # await trigger_auto_recharge(customer_id, remaining_balance)
+        elif alert_type == 'payment_gate.threshold_reached':
+            customer_id = properties.get('customer_id')
+            contract_id = properties.get('contract_id')
+            
+            print(f"🎯 AUTO-RECHARGE THRESHOLD REACHED:")
+            print(f"   Customer: {customer_id}")
+            print(f"   Contract: {contract_id}")
+            print(f"   ⏳ Waiting for external_initiate webhook...")
+            
+        elif alert_type == 'payment_gate.external_initiate':
+            # 🎯 KEY WEBHOOK: Auto-recharge payment request
+            customer_id = properties.get('customer_id')
+            contract_id = properties.get('contract_id')
+            invoice_id = properties.get('invoice_id')
+            workflow_id = properties.get('workflow_id')
+            invoice_total = properties.get('invoice_total')  # Amount in cents
+            invoice_currency = properties.get('invoice_currency')
+            
+            print(f"💳 AUTO-RECHARGE PAYMENT REQUEST:")
+            print(f"   Customer: {customer_id}")
+            print(f"   Contract: {contract_id}")
+            print(f"   Invoice: {invoice_id}")
+            print(f"   Workflow: {workflow_id}")
+            print(f"   Amount: {invoice_total} cents (${invoice_total/100:.2f})")
+            print(f"   Currency: {invoice_currency}")
+            print(f"   📝 TODO: Implement payment processing and workflow release")
             
         elif alert_type == 'alerts.usage_threshold_reached':
             print(f"📊 USAGE THRESHOLD REACHED")
@@ -79,7 +109,7 @@ async def handle_metronome_alerts(request: Request):
             "status": "error",
             "message": f"Failed to process alert webhook: {str(e)}"
         }
-
+    
 @router.post("/metronome/invoices")
 async def handle_metronome_invoices(request: Request):
     """

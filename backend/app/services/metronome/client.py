@@ -468,6 +468,47 @@ class MetronomeClient:
                 "source": "error_fallback"
             }
     
+    async def release_threshold_billing(self, workflow_id: str, outcome: str) -> Dict[str, Any]:
+        """
+        Release external payment gate threshold commit
+        
+        Args:
+            workflow_id: The workflow ID from the external_initiate webhook
+            outcome: "paid" or "failed" - the result of the external payment
+            
+        Returns:
+            Dict containing release confirmation
+        """
+        logger.info(f"Releasing threshold billing workflow {workflow_id} with outcome: {outcome}")
+        
+        if outcome not in ["paid", "failed"]:
+            raise ValueError(f"Invalid outcome '{outcome}'. Must be 'paid' or 'failed'")
+        
+        payload = {
+            "workflow_id": workflow_id,
+            "outcome": outcome
+        }
+        
+        try:
+            response_data = await self._make_request(
+                "POST", 
+                "/v1/contracts/commits/threshold-billing/release", 
+                payload
+            )
+            
+            logger.info(f"✅ Threshold billing released successfully: {outcome}")
+            
+            return {
+                "success": True,
+                "workflow_id": workflow_id,
+                "outcome": outcome,
+                "response": response_data
+            }
+            
+        except Exception as e:
+            logger.error(f"❌ Failed to release threshold billing: {e}")
+            raise Exception(f"Failed to release threshold billing workflow {workflow_id}: {e}")
+
     async def record_usage_event(self, customer_id: str, event_data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Record usage event for voice generation (consume credits)
