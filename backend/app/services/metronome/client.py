@@ -588,5 +588,41 @@ class MetronomeClient:
             logger.error(f"❌ Failed to set customer aliases: {e}")
             raise Exception(f"Failed to set customer aliases: {e}")
 
+ 
+
+    async def ingest_usage_event(self, event_payload: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Ingest usage event to Metronome using /v1/ingest endpoint
+        
+        Args:
+            event_payload: Single event object to ingest
+            
+        Returns:
+            Dict with success status
+        """
+        logger.info(f"Ingesting usage event: {event_payload.get('event_type')} for customer {event_payload.get('customer_id')}")
+        
+        try:
+            # Metronome expects an array of events
+            payload = [event_payload]
+            
+            response_data = await self._make_request(
+                "POST", 
+                "/v1/ingest", 
+                payload
+            )
+            
+            logger.info(f"✅ Usage event ingested successfully: {event_payload.get('transaction_id')}")
+            
+            return {
+                "success": True,
+                "transaction_id": event_payload.get('transaction_id'),
+                "event_type": event_payload.get('event_type')
+            }
+            
+        except Exception as e:
+            logger.error(f"❌ Failed to ingest usage event: {e}")
+            raise Exception(f"Failed to ingest usage event to Metronome: {e}")
+
 # Global client instance
 metronome_client = MetronomeClient()
