@@ -1,0 +1,32 @@
+services:
+  - type: web
+    name: vocalis-app
+    runtime: python
+    plan: free  # Free tier - upgrade to starter ($7/month) for better performance
+    
+    # Build settings
+    buildCommand: |
+      cd backend
+      pip install -r requirements.txt
+    
+    # Start command
+    startCommand: |
+      cd backend
+      python -m uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    
+    # Environment variables (you'll set the values in Render dashboard)
+    envVars:
+      - key: METRONOME_API_KEY
+        sync: false  # Will set manually in dashboard
+      - key: METRONOME_API_URL
+        value: https://api.metronome.com/v1
+      - key: SECRET_KEY
+        generateValue: true  # Render will generate a secure key
+      - key: PYTHONPATH
+        value: /opt/render/project/src/backend
+    
+    # Health check
+    healthCheckPath: /health
+    
+    # Serve static files
+    staticPublishPath: ./frontend/static
