@@ -2,6 +2,10 @@ services:
   - type: web
     name: vocalis-app
     runtime: python
+    buildCommand: |
+      cd backend
+      pip install --upgrade pip
+      pip install --only-binary=:all: -r requirements.txt
     plan: free  # Free tier - upgrade to starter ($7/month) for better performance
     
     # Build settings
