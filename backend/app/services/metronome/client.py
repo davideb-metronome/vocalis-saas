@@ -236,17 +236,19 @@ class MetronomeClient:
         purchase_amount_dollars = contract_data.get("amount", 0)
         purchase_amount_cents = int(purchase_amount_dollars * 100)
         
-        # ✅ FIXED: Contract start and end dates - must be on hour boundaries
-        now = datetime.now()
-        # Round to next hour boundary
-        start_hour = now.replace(minute=0, second=0, microsecond=0)
-        if now.minute > 0 or now.second > 0 or now.microsecond > 0:
-            start_hour = start_hour + timedelta(hours=1)
+        start_date = "2025-07-01T00:00:00.000Z"  # July 1st, 2025 at midnight UTC
+        end_date = "2026-07-01T00:00:00.000Z"    # July 1st, 2026 at midnight UTC
+
+        # now = datetime.now()
+        # # Round to next hour boundary
+        # start_hour = now.replace(minute=0, second=0, microsecond=0)
+        # if now.minute > 0 or now.second > 0 or now.microsecond > 0:
+        #     start_hour = start_hour + timedelta(hours=1)
         
-        end_hour = start_hour + timedelta(days=365)  # 1 year later
+        # end_hour = start_hour + timedelta(days=365)  # 1 year later
         
-        start_date = start_hour.strftime("%Y-%m-%dT%H:%M:%S.000Z")
-        end_date = end_hour.strftime("%Y-%m-%dT%H:%M:%S.000Z")
+        # start_date = start_hour.strftime("%Y-%m-%dT%H:%M:%S.000Z")
+        # end_date = end_hour.strftime("%Y-%m-%dT%H:%M:%S.000Z")
         
         logger.info(f"Contract dates: {start_date} to {end_date}")
         
