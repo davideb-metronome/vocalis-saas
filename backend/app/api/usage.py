@@ -22,7 +22,6 @@ class VoiceGenerationRequest(BaseModel):
     voice_name: str
     voice_type: str
     character_count: int
-    estimated_credits: int
 
 class VoiceGenerationResponse(BaseModel):
     success: bool
@@ -109,7 +108,7 @@ async def generate_voice(
         print(f"   Customer: {customer_id}")
         print(f"   Voice Type: {request.voice_type}")
         print(f"   Text Length: {request.character_count} characters")
-        print(f"   Estimated Credits: {request.estimated_credits}")
+    
         
         # 1. Get current balance to validate sufficient credits
         balance_data = await metronome_client.get_customer_balance(customer_id)

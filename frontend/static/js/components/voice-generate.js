@@ -134,8 +134,7 @@ class VoiceGenerator {
                 text: '',
                 voice_name: 'Custom Clone',
                 voice_type: 'clone',
-                character_count: 0,
-                estimated_credits: this.VOICE_CLONE_COST
+                character_count: 0
             });
 
             if (result.success) {
@@ -226,79 +225,77 @@ class VoiceGenerator {
     }
 
     async handleGenerate() {
-    const text = this.elements.textInput.value?.trim();
-    
-    if (!text) {
-        notifications.warning('Please enter some text to convert');
-        return;
-    }
+        const text = this.elements.textInput.value?.trim();
+        
+        if (!text) {
+            notifications.warning('Please enter some text to convert');
+            return;
+        }
 
-    const characterCount = text.length;
-    let creditsNeeded;
+        const characterCount = text.length;
+        let creditsNeeded;
 
-    if (this.selectedVoiceType === 'clone' && this.hasCustomClone) {
-        creditsNeeded = characterCount * 1;
-    } else if (this.selectedVoiceType === 'clone') {
-        creditsNeeded = this.VOICE_CLONE_COST;
-    } else {
-        creditsNeeded = characterCount * this.selectedCostPerChar;
-    }
+        if (this.selectedVoiceType === 'clone' && this.hasCustomClone) {
+            creditsNeeded = characterCount * 1;
+        } else if (this.selectedVoiceType === 'clone') {
+            creditsNeeded = this.VOICE_CLONE_COST;
+        } else {
+            creditsNeeded = characterCount * this.selectedCostPerChar;
+        }
 
-    try {
-        // Show loading state
-        this.elements.generateBtn.disabled = true;
-        this.elements.generateBtn.textContent = 'Generating...';
+        try {
+            // Show loading state
+            this.elements.generateBtn.disabled = true;
+            this.elements.generateBtn.textContent = 'Generating...';
 
-        // Call API
-        const result = await vocalisAPI.generateVoice({
-            text: text,
-            voice_name: this.selectedVoice,
-            voice_type: this.selectedVoiceType,
-            character_count: characterCount,
-            estimated_credits: creditsNeeded
-        });
+            // Call API
+            const result = await vocalisAPI.generateVoice({
+                text: text,
+                voice_name: this.selectedVoice,
+                voice_type: this.selectedVoiceType,
+                character_count: characterCount
+            });
 
-        if (result.success) {
-            const actualCreditsUsed = result.credits_consumed || creditsNeeded;
-            const dollarCost = actualCreditsUsed * this.CREDIT_RATE;
+            if (result.success) {
+                const actualCreditsUsed = result.credits_consumed || creditsNeeded;
+                const dollarCost = actualCreditsUsed * this.CREDIT_RATE;
 
-            notifications.success(
-                `✓ Voice generated with ${this.selectedVoice}! Used ${actualCreditsUsed.toLocaleString()} credits (~$${dollarCost.toFixed(2)})`
-            );
-
-            // Update balance immediately
-            if (result.new_balance !== undefined && window.creditDisplayManager) {
-                window.creditDisplayManager.updateCreditsDisplay(
-                    result.new_balance, 
-                    result.new_balance, 
-                    actualCreditsUsed, 
-                    'voice_generation'
+                notifications.success(
+                    `✓ Voice generated with ${this.selectedVoice}! Used ${actualCreditsUsed.toLocaleString()} credits (~$${dollarCost.toFixed(2)})`
                 );
+
+                // Update balance immediately
+                if (result.new_balance !== undefined && window.creditDisplayManager) {
+                    window.creditDisplayManager.updateCreditsDisplay(
+                        result.new_balance, 
+                        result.new_balance, 
+                        actualCreditsUsed, 
+                        'voice_generation'
+                    );
+                } else {
+                    window.creditDisplayManager?.refreshBalance();
+                }
+
             } else {
-                window.creditDisplayManager?.refreshBalance();
+                throw new Error(result.message || 'Generation failed');
             }
 
-        } else {
-            throw new Error(result.message || 'Generation failed');
+        } catch (error) {
+            console.error('Voice generation failed:', error);
+            
+            if (error.message.includes('Insufficient credits')) {
+                notifications.error(`❌ Not enough credits! You need ${creditsNeeded.toLocaleString()} credits.`);
+            } else if (error.message.includes('not implemented')) {
+                notifications.info('✨ Voice generation feature working! (Backend API coming soon)');
+            } else {
+                notifications.error(`❌ Generation failed: ${error.message}`);
+            }
+        } finally {
+            // Restore button
+            this.elements.generateBtn.disabled = false;
+            this.elements.generateBtn.textContent = 'Generate Voice';
         }
-
-    } catch (error) {
-        console.error('Voice generation failed:', error);
-        
-        if (error.message.includes('Insufficient credits')) {
-            notifications.error(`❌ Not enough credits! You need ${creditsNeeded.toLocaleString()} credits.`);
-        } else if (error.message.includes('not implemented')) {
-            notifications.info('✨ Voice generation feature working! (Backend API coming soon)');
-        } else {
-            notifications.error(`❌ Generation failed: ${error.message}`);
-        }
-    } finally {
-        // Restore button
-        this.elements.generateBtn.disabled = false;
-        this.elements.generateBtn.textContent = 'Generate Voice';
     }
-}
-
 }
 
 // Export for use in other modules
