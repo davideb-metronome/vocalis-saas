@@ -26,9 +26,9 @@ class DashboardPage {
                 this.creditDisplay.updateCreditsDisplay(40000, 40000, 0);
                 notifications.info('🪙 Demo credits loaded (40,000 credits)');
             } else {
-                notifications.info('🪙 Credit system ready!');
+                // notifications.info('🪙 Credit system ready!');
             }
-        }, 500);
+        }, 50000);
 
         console.log('✅ Dashboard page initialized');
     }

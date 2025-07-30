@@ -55,9 +55,9 @@ class BillingPage {
         this.updateDisplay();
 
         // Show welcome notification
-        setTimeout(() => {
-            notifications.info('💳 Enhanced credit billing ready!');
-        }, 1000);
+        // setTimeout(() => {
+        //     notifications.info('💳 Enhanced credit billing ready!');
+        // }, 1000);
 
         console.log('✅ Billing page initialized');
     }

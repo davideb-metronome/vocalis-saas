@@ -266,7 +266,7 @@ class CreditDisplayManager {
                 console.log('✅ SSE connection opened successfully!');
                 console.log('🔍 Open event:', event);
                 console.log('🔍 EventSource readyState after open:', this.eventSource.readyState);
-                notifications.info('🔄 Real-time balance updates connected');
+                // notifications.info('🔄 Real-time balance updates connected');
             };
             
             this.eventSource.onmessage = (event) => {

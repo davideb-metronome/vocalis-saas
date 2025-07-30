@@ -34,7 +34,7 @@ class SignupPage {
         // Show welcome notification
         setTimeout(() => {
             notifications.info('Welcome to Vocalis! 🎉');
-        }, 1000);
+        }, 50000);
 
         console.log('✅ Signup page initialized');
     }

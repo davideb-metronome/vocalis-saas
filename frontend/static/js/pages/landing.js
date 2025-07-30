@@ -18,7 +18,7 @@ class LandingPage {
         // Show welcome notification
         setTimeout(() => {
             notifications.info('Welcome to Vocalis! 🎉');
-        }, 1000);
+        }, 50000);
 
         console.log('✅ Landing page initialized');
     }
