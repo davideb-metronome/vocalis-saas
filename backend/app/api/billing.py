@@ -3,7 +3,7 @@ Billing API Routes
 Credit purchases and auto-recharge management
 """
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, logger
 from pydantic import BaseModel
 from typing import Dict, Any, Optional
 async def get_customer_balance(self, customer_id: str) -> Dict[str, Any]:
