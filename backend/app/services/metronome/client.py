@@ -353,7 +353,8 @@ class MetronomeClient:
             # ✅ FIXED: Use the correct Metronome endpoint for customer balances
             payload = {
                 "customer_id": customer_id,
-                "include_ledgers": True  # Include ledger information for detailed balance
+                "include_ledgers": True,  # Include ledger information for detailed balance
+                "include_balance": True  # Critical for current balance
             }
             
             response_data = await self._make_request(
