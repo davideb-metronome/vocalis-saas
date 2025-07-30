@@ -332,149 +332,78 @@ class MetronomeClient:
             
         except Exception as e:
             logger.error(f"❌ Failed to create contract: {e}")
-            raise Exception(f"Failed to create contract in Metronome: {e}")         
+            raise Exception(f"Failed to create contract in Metronome: {e}")   
+              
         
     async def get_customer_balance(self, customer_id: str) -> Dict[str, Any]:
         """
-        ✅ FIXED: Get customer's current credit balance from Metronome
+        Get customer's current credit balance from Metronome
+        SIMPLIFIED VERSION - Trust the balance field from API
         
         Args:
             customer_id: Metronome customer ID
             
         Returns:
-            Dict containing:
-                - balance: Remaining credits
-                - customer_id: Customer ID
-                - currency: "USD"
+            Dict containing balance info
+            
+        Raises:
+            Exception: If API fails or balance cannot be determined
         """
         logger.info(f"Getting balance for customer {customer_id}")
         
-        try:
-            # ✅ FIXED: Use the correct Metronome endpoint for customer balances
-            payload = {
-                "customer_id": customer_id,
-                "include_ledgers": True,  # Include ledger information for detailed balance
-                "include_balance": True  # Critical for current balance
-            }
+        payload = {
+            "customer_id": customer_id,
+            "include_balance": True,          # CRITICAL: Gets the calculated balance
+            "include_ledgers": False,         # We don't need ledgers for balance calculation
+            "include_contract_balances": True # Include contract-specific balances if needed
+        }
+        
+        response_data = await self._make_request(
+            "POST", 
+            "/v1/contracts/customerBalances/list", 
+            payload
+        )
+        
+        # Log the response for debugging
+        logger.info(f"📊 METRONOME BALANCE RESPONSE: {response_data}")
+        print("=" * 70)
+        print("📊 METRONOME CUSTOMER BALANCE RESPONSE:")
+        print(f"   Customer ID: {customer_id}")
+        print(f"   Full Response: {response_data}")
+        print("=" * 70)
+        
+        # Get the balance entries
+        balances = response_data.get("data", [])
+        
+        if not balances:
+            raise Exception(f"No balance data found for customer {customer_id}. Customer or contract may not exist.")
+        
+        # Sum all balance fields - Metronome already calculated these
+        total_balance_cents = 0
+        for balance_entry in balances:
+            balance_cents = balance_entry.get("balance", 0)
+            entry_type = balance_entry.get("type", "unknown")
+            product_name = balance_entry.get("product", {}).get("name", "unknown")
             
-            response_data = await self._make_request(
-                "POST", 
-                "/v1/contracts/customerBalances/list", 
-                payload
-            )
-            
-            # 🔍 LOG THE FULL RESPONSE FOR DEBUGGING
-            logger.info(f"📊 METRONOME BALANCE RESPONSE: {response_data}")
-            print("=" * 70)
-            print("📊 METRONOME CUSTOMER BALANCE RESPONSE:")
-            print(f"   Customer ID: {customer_id}")
-            print(f"   Full Response: {response_data}")
-            print("=" * 70)
-            
-            # Parse the balance data from commits and ledgers
-            balances = response_data.get("data", [])
-            total_available_credits = 0
-            
-            if not balances:
-                logger.error(f"❌ EMPTY BALANCE RESPONSE from Metronome for customer {customer_id}")
-                logger.error(f"❌ Full response was: {response_data}")
-                raise Exception(f"Metronome returned empty balance data for customer {customer_id}. This suggests the customer or contract doesn't exist.")
-            
-            # Process balance data
-            for balance_entry in balances:
-                # Look for credits from commits
-                if "access_schedule" in balance_entry:
-                    schedule_items = balance_entry.get("access_schedule", {}).get("schedule_items", [])
-                    for item in schedule_items:
-                        amount_cents = item.get("amount", 0)
-                        # Convert cents to credits: $0.00025 per credit = 0.025 cents per credit
-                        credits = int(amount_cents / 0.025)  # 1 cent = 40 credits
-                        total_available_credits += credits
-                        
-                        logger.info(f"📊 Found commit: {amount_cents} cents = {credits} credits")
-                
-                # Look for invoice_contract data which might have credit info
-                if "invoice_contract" in balance_entry:
-                    invoice_data = balance_entry["invoice_contract"]
-                    logger.info(f"📊 Invoice contract data: {invoice_data}")
-                
-                # Look for ledgers which show actual usage/balance
-                if "ledgers" in balance_entry:
-                    ledgers = balance_entry["ledgers"]
-                    for ledger in ledgers:
-                        amount = ledger.get("amount", 0)
-                        ledger_type = ledger.get("type", "unknown")
-                        logger.info(f"📊 Ledger entry: {ledger_type} = {amount}")
-                        
-                        # If this is a prepaid credit ledger, add to balance
-                        if ledger_type == "PREPAID_COMMIT_AUTOMATED_INVOICE_DEDUCTION":
-                            # This represents available credits
-                            credits_from_ledger = int(amount / 0.025)  # Convert cents to credits
-                            total_available_credits += credits_from_ledger
-                            logger.info(f"📊 Credits from ledger: {credits_from_ledger}")
-            
-            # If we still don't have a balance, try to calculate from the response structure
-            if total_available_credits == 0:
-                # Look for any amount fields and convert them
-                logger.info("📊 No credits found in standard fields, checking all amount fields...")
-                
-                def extract_amounts(obj, path=""):
-                    """Recursively extract amount fields from the response"""
-                    amounts = []
-                    if isinstance(obj, dict):
-                        for key, value in obj.items():
-                            if key == "amount" and isinstance(value, (int, float)):
-                                amounts.append((f"{path}.{key}", value))
-                                logger.info(f"📊 Found amount at {path}.{key}: {value}")
-                            elif isinstance(value, (dict, list)):
-                                amounts.extend(extract_amounts(value, f"{path}.{key}"))
-                    elif isinstance(obj, list):
-                        for i, item in enumerate(obj):
-                            amounts.extend(extract_amounts(item, f"{path}[{i}]"))
-                    return amounts
-                
-                all_amounts = extract_amounts(response_data)
-                
-                # Use the largest amount as the likely credit balance
-                if all_amounts:
-                    largest_amount = max(all_amounts, key=lambda x: x[1])
-                    amount_cents = largest_amount[1]
-                    total_available_credits = int(amount_cents / 0.025)  # Convert cents to credits
-                    logger.info(f"📊 Using largest amount: {amount_cents} cents = {total_available_credits} credits from {largest_amount[0]}")
-            
-            # Final check - if we still have 0, this is likely an error
-            if total_available_credits == 0:
-                logger.error("❌ Could not find any credit balance in Metronome response")
-                logger.error(f"❌ Customer {customer_id} appears to have no credits or the parsing failed")
-                logger.error(f"❌ Full response: {response_data}")
-                raise Exception(f"No credit balance found for customer {customer_id}. Check if contract exists and has commits.")
-            
-            source = "metronome_api"
-            dollar_value = total_available_credits * 0.00025
-            
-            logger.info(f"✅ Customer {customer_id} balance: {total_available_credits} credits (${dollar_value:.2f})")
-            
-            return {
-                "customer_id": customer_id,
-                "balance": total_available_credits,
-                "currency": "USD",
-                "dollar_value": dollar_value,
-                "last_updated": datetime.now().isoformat(),
-                "source": source
-            }
-            
-        except Exception as e:
-            logger.error(f"❌ Failed to get customer balance: {e}")
-            # Return demo balance as fallback
-            logger.info("📊 API FAILED - USING DEMO BALANCE: 40,000 credits")
-            return {
-                "customer_id": customer_id,
-                "balance": 40000,  # Demo balance
-                "currency": "USD",
-                "last_updated": datetime.now().isoformat(),
-                "source": "error_fallback"
-            }
-
+            total_balance_cents += balance_cents
+            logger.info(f"📊 Found {entry_type} balance: {balance_cents} cents from {product_name}")
+        
+        # Convert cents to credits: $0.00025 per credit = 0.025 cents per credit
+        total_available_credits = int(total_balance_cents / 0.025)
+        dollar_value = total_balance_cents / 100  # Convert cents to dollars
+        
+        logger.info(f"✅ Customer {customer_id} balance: {total_available_credits} credits (${dollar_value:.2f})")
+        
+        return {
+            "customer_id": customer_id,
+            "balance": total_available_credits,
+            "balance_cents": total_balance_cents,
+            "currency": "USD",
+            "dollar_value": dollar_value,
+            "last_updated": datetime.now().isoformat(),
+            "source": "metronome_api"
+        }
+ 
     async def release_threshold_billing(self, workflow_id: str, outcome: str) -> Dict[str, Any]:
         """
         ✅ FIXED: Release external payment gate threshold commit

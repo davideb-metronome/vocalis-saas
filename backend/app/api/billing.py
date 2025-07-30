@@ -265,12 +265,12 @@ async def get_credit_balance(customer_id: str):
 from datetime import datetime
 
 
-# Add or update this endpoint
+# Update this in backend/app/api/billing.py
+
 @router.get("/credits/balance/{customer_id}")
 async def get_credit_balance(customer_id: str):
     """
-    Get current credit balance from Metronome
-    ✅ ENHANCED: Now with detailed logging
+    Get current credit balance from Metronome - NO FALLBACKS
     """
     try:
         print("=" * 70)
@@ -279,11 +279,11 @@ async def get_credit_balance(customer_id: str):
         print(f"   Timestamp: {datetime.now().isoformat()}")
         print("=" * 70)
         
-        # Call the Metronome API to get balance
+        # Call Metronome API - let it fail if it fails
         balance_data = await metronome_client.get_customer_balance(customer_id)
         
         print("=" * 70)
-        print(f"🔍 BALANCE RESPONSE:")
+        print(f"✅ BALANCE SUCCESS:")
         print(f"   Balance: {balance_data.get('balance', 0)} credits")
         print(f"   Dollar Value: ${balance_data.get('dollar_value', 0):.2f}")
         print(f"   Source: {balance_data.get('source', 'unknown')}")
@@ -291,14 +291,17 @@ async def get_credit_balance(customer_id: str):
         
         return balance_data
         
-    except NotImplementedError as e:
-        raise HTTPException(
-            status_code=501,
-            detail=f"Metronome integration not implemented: {str(e)}"
-        )
     except Exception as e:
-        print(f"❌ Balance API Error: {e}")
+        print("=" * 70)
+        print(f"❌ BALANCE API ERROR:")
+        print(f"   Customer ID: {customer_id}")
+        print(f"   Error: {str(e)}")
+        print("=" * 70)
+        
+        logger.error(f"Failed to get customer balance for {customer_id}: {e}")
+        
+        # Return the actual error to help debug - NO FALLBACKS
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to retrieve balance: {str(e)}"
+            detail=f"Failed to retrieve balance from Metronome: {str(e)}"
         )

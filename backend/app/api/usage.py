@@ -3,6 +3,7 @@ Usage API Routes
 Voice generation and usage tracking with real Metronome ingest
 """
 
+import asyncio
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 from typing import Dict, Any, Optional
@@ -167,6 +168,10 @@ async def generate_voice(
         print(f"✅ Usage event recorded successfully in Metronome")
         
         # 6. Get updated balance after usage
+      
+        # Wait for Metronome to process the usage
+        print(f"wait 5 seconds before fetching balance")
+        await asyncio.sleep(5)  
         print(f"📊 Getting updated balance...")
         updated_balance_data = await metronome_client.get_customer_balance(customer_id)
         new_balance = updated_balance_data.get("balance", current_balance - credits_needed)

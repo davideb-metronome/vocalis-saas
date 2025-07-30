@@ -8,6 +8,7 @@ class CreditDisplayManager {
         this.CREDIT_RATE = 0.00025;
         this.eventSource = null;
         this.isLoaded = false; // ✅ Track if real data is loaded
+        this.originalPurchaseAmount = null;
 
         this.elements = {
             creditsBalance: document.getElementById('credits-balance'),
@@ -60,6 +61,8 @@ class CreditDisplayManager {
     }
 
 
+    // Update this in frontend/static/js/components/credit-display.js
+
     async loadRealBalance() {
         console.log('📊 Loading real balance from Metronome API...');
         
@@ -67,94 +70,124 @@ class CreditDisplayManager {
             const customerId = sessionStorage.getItem('vocalis_customer_id');
             
             if (!customerId) {
-                console.log('⚠️ No customer ID found, using demo balance');
-                this.loadDemoBalance();
-                return;
+                throw new Error('No customer ID found. Please sign up first.');
             }
             
             const response = await fetch(`/api/billing/credits/balance/${customerId}`);
             
             if (!response.ok) {
-                throw new Error(`Balance API failed: ${response.status}`);
+                const errorData = await response.json().catch(() => ({ detail: `HTTP ${response.status}` }));
+                throw new Error(errorData.detail || `Balance API failed: ${response.status}`);
             }
             
             const balanceData = await response.json();
             console.log('📊 Balance API Response:', balanceData);
             
-            const balance = balanceData.balance || 0;
-            const dollarValue = balanceData.dollar_value || (balance * this.CREDIT_RATE);
-            const source = balanceData.source || 'api';
+            const balance = balanceData.balance;
+            const dollarValue = balanceData.dollar_value;
+            const source = balanceData.source;
             
-            console.log(`📊 Real balance loaded: ${balance} credits ($${dollarValue.toFixed(2)}) from ${source}`);
+            if (balance === undefined || balance === null) {
+                throw new Error('Balance data is missing from API response');
+            }
             
-            // ✅ Update display and mark as loaded
+            console.log(`📊 Real balance loaded: ${balance.toLocaleString()} credits ($${dollarValue.toFixed(2)}) from ${source}`);
+            
+            // Update display and mark as loaded
             this.updateCreditsDisplay(balance, balance, 0, source);
             this.isLoaded = true;
             
-            if (source === 'metronome_api') {
-                notifications.info(`📊 Real balance loaded: ${balance.toLocaleString()} credits`);
-            } else {
-                notifications.warning(`⚠️ Using ${source} balance: ${balance.toLocaleString()} credits`);
-            }
+            notifications.info(`📊 Balance loaded: ${balance.toLocaleString()} credits`);
             
         } catch (error) {
-            console.error('❌ Failed to load real balance:', error);
-            console.log('📊 Falling back to demo balance');
-            
-            this.loadDemoBalance();
-            notifications.warning('⚠️ Using demo balance - API unavailable');
+            console.error('❌ Failed to load balance:', error);
+            this.showError(`Failed to load balance: ${error.message}`);
         }
     }
 
-
-    loadDemoBalance() {
-        console.log('📊 Loading demo balance from sessionStorage...');
+    showError(message) {
+        console.error('📊 Credit Display Error:', message);
         
-        const purchaseData = JSON.parse(sessionStorage.getItem('vocalis_purchase') || '{}');
-        const billingData = JSON.parse(sessionStorage.getItem('vocalis_billing') || '{}');
-        
-        let creditsBalance = 80000; // ✅ Use 80K to match what user actually has
-        let totalPurchased = 80000;
-        let totalUsed = 0;
-        
-        if (purchaseData.credits && purchaseData.credits > 0) {
-            creditsBalance = purchaseData.credits;
-            totalPurchased = purchaseData.credits;
-            console.log('✅ Found purchase data - Credits:', creditsBalance);
-        } else if (billingData.credits_balance && billingData.credits_balance > 0) {
-            creditsBalance = billingData.credits_balance;
-            totalPurchased = billingData.credits_balance;
-            console.log('✅ Found billing data - Credits:', creditsBalance);
-        } else {
-            console.log('⚠️ No purchase data found, using default 80,000 credits');
+        // Show error in UI
+        if (this.elements.creditsBalance) {
+            this.elements.creditsBalance.textContent = 'Error';
+            this.elements.creditsBalance.style.color = 'var(--error-red)';
+            this.elements.creditsBalance.style.opacity = '1';
         }
         
-        // ✅ Update display and mark as loaded
-        this.updateCreditsDisplay(creditsBalance, totalPurchased, totalUsed, 'demo');
-        this.isLoaded = true;
+        if (this.elements.balanceValue) {
+            this.elements.balanceValue.textContent = message;
+            this.elements.balanceValue.style.color = 'var(--error-red)';
+        }
+        
+        // Show notification
+        notifications.error(message);
+        
+        this.isLoaded = false;
     }
 
-   updateCreditsDisplay(remaining, purchased, used, source = 'unknown') {
+    // Replace the updateCreditsDisplay method in frontend/static/js/components/credit-display.js
+
+    updateCreditsDisplay(remaining, purchased, used, source = 'unknown') {
         console.log('📊 Updating credits display:', { remaining, purchased, used, source });
         
         const dollarValue = remaining * this.CREDIT_RATE;
+        
+        // Step 1: Determine the original purchase amount
+        if (!this.originalPurchaseAmount) {
+            // First time loading - try to determine original purchase
+            if (purchased > 0 && purchased !== remaining) {
+                // If purchased parameter looks valid (different from remaining), use it
+                this.originalPurchaseAmount = purchased;
+                console.log('📊 Set original purchase from parameter:', this.originalPurchaseAmount);
+            } else if (used > 0) {
+                // Calculate from remaining + used
+                this.originalPurchaseAmount = remaining + used;
+                console.log('📊 Calculated original purchase from usage:', this.originalPurchaseAmount);
+            } else {
+                // Try to get from session storage
+                const purchaseData = JSON.parse(sessionStorage.getItem('vocalis_purchase') || '{}');
+                if (purchaseData.credits && purchaseData.credits > 0) {
+                    this.originalPurchaseAmount = purchaseData.credits;
+                    console.log('📊 Got original purchase from session:', this.originalPurchaseAmount);
+                } else {
+                    // Last resort - assume current remaining is the original (for first load)
+                    this.originalPurchaseAmount = remaining;
+                    console.log('📊 Using current balance as original purchase:', this.originalPurchaseAmount);
+                }
+            }
+        }
+        
+        // Step 2: Calculate the actual used amount
+        const actualUsed = Math.max(0, this.originalPurchaseAmount - remaining);
+        
+        console.log('📊 Final calculation:', {
+            originalPurchase: this.originalPurchaseAmount,
+            remaining: remaining,
+            actualUsed: actualUsed
+        });
+        
+        // Step 3: Update the display with corrected values
         
         // ✅ RESTORE OPACITY: Remove loading state
         if (this.elements.creditsBalance) {
             this.elements.creditsBalance.textContent = remaining.toLocaleString();
             this.elements.creditsBalance.style.opacity = '1'; // Restore full opacity
+            this.elements.creditsBalance.style.color = ''; // Reset any error colors
         }
         
         if (this.elements.balanceValue) {
             this.elements.balanceValue.textContent = `≈ $${dollarValue.toFixed(2)} value`;
+            this.elements.balanceValue.style.color = ''; // Reset any error colors
         }
         
+        // Use corrected values for breakdown
         if (this.elements.totalPurchased) {
-            this.elements.totalPurchased.textContent = purchased.toLocaleString();
+            this.elements.totalPurchased.textContent = this.originalPurchaseAmount.toLocaleString();
         }
         
         if (this.elements.totalUsed) {
-            this.elements.totalUsed.textContent = used.toLocaleString();
+            this.elements.totalUsed.textContent = actualUsed.toLocaleString();
         }
         
         if (this.elements.remainingBalance) {
@@ -165,12 +198,19 @@ class CreditDisplayManager {
         if (this.elements.creditsBalance) {
             const indicator = source === 'metronome_api' ? '🟢' : 
                             source === 'real_time_update' ? '🔴' :
-                            source === 'demo' ? '🟡' : '🔴';
+                            source === 'voice_generation' ? '🟡' : '🔴';
             this.elements.creditsBalance.title = `${indicator} Data source: ${source}`;
         }
         
         console.log('📊 Display updated successfully');
     }
+
+    // Add this method to reset the original purchase amount if needed
+    resetOriginalPurchase() {
+        this.originalPurchaseAmount = null;
+        console.log('📊 Original purchase amount reset');
+    }
+
 
     setupAutoRechargeInfo() {
         // Get purchase data to check for auto-recharge
