@@ -83,14 +83,21 @@ class BillingPage {
         const breakdown = this.calculator.calculateVoiceBreakdown(this.selectedCredits);
         
         // Update main display
+        // if (this.elements.amountDisplay) {
+        //     this.elements.amountDisplay.textContent = this.calculator.formatCurrency(this.selectedAmount);
+        // }
+
         if (this.elements.amountDisplay) {
-            this.elements.amountDisplay.textContent = this.calculator.formatCurrency(this.selectedAmount);
+            this.elements.amountDisplay.textContent = `${this.calculator.formatNumber(this.selectedCredits)} VC`;
         }
+        
+        // if (this.elements.creditsInfo) {
+        //     this.elements.creditsInfo.textContent = `${this.calculator.formatNumber(this.selectedCredits)} credits`;
+        // }
         
         if (this.elements.creditsInfo) {
-            this.elements.creditsInfo.textContent = `${this.calculator.formatNumber(this.selectedCredits)} credits`;
+            this.elements.creditsInfo.textContent = `≈ ${this.calculator.formatCurrency(this.selectedAmount)}`;
         }
-        
         // Update breakdown
         if (this.elements.standardMinutes) {
             this.elements.standardMinutes.textContent = `~${breakdown.standardMinutes} minutes`;
@@ -105,14 +112,26 @@ class BillingPage {
         }
         
         // Update total and button
+        // if (this.elements.totalAmount) {
+        //     this.elements.totalAmount.textContent = this.calculator.formatCurrency(this.selectedAmount);
+        // }
+        
         if (this.elements.totalAmount) {
-            this.elements.totalAmount.textContent = this.calculator.formatCurrency(this.selectedAmount);
+            this.elements.totalAmount.innerHTML = `
+                <div class="total-credits">${this.calculator.formatNumber(this.selectedCredits)} VC</div>
+                <div class="total-usd">(${this.calculator.formatCurrency(this.selectedAmount)})</div>
+            `;
         }
+
+        // if (this.elements.purchaseBtn) {
+        //     this.elements.purchaseBtn.textContent = `Purchase ${this.calculator.formatCurrency(this.selectedAmount)} of credits`;
+        // }
         
+
         if (this.elements.purchaseBtn) {
-            this.elements.purchaseBtn.textContent = `Purchase ${this.calculator.formatCurrency(this.selectedAmount)} of credits`;
+            this.elements.purchaseBtn.textContent = `Purchase ${this.calculator.formatNumber(this.selectedCredits)} VC`;
         }
-        
+    
         // Update input field
         if (this.elements.amountInput) {
             this.elements.amountInput.value = `$${this.selectedAmount.toFixed(0)}`;

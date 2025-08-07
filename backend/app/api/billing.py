@@ -189,15 +189,20 @@ async def purchase_credits(
             "customer_id": customer_id,
             "billing_type": "prepaid_credits",
             "credits": request.credits,
-            "amount": request.amount,
+            # "amount": request.amount,
             "auto_recharge": request.auto_recharge.dict() if request.auto_recharge else None
         }
         
+        credits_to_purchase = contract_data.get("credits", 0)  # Get credits directly!
+        print(f"CREDITS TO PURCHASE RETRIEVED FROM FRONTEND: {credits_to_purchase}")
+
         # Create billing contract in Metronome 
-        contract_data = {
-            "auto_recharge": request.auto_recharge.dict() if request.auto_recharge else None,
-            "amount": request.amount
-        }
+        # contract_data = {
+        #     "auto_recharge": request.auto_recharge.dict() if request.auto_recharge else None,
+        #     # "amount": request.amount
+        #     credits:request.credits
+        # }
+       
         contract = await metronome_client.create_billing_contract(customer_id, contract_data)
 
         

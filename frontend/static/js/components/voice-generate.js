@@ -211,17 +211,29 @@ class VoiceGenerator {
         const dollarCost = creditsNeeded * this.CREDIT_RATE;
 
         // Update credit estimate
-        if (this.elements.creditEstimate) {
-            if (this.selectedVoiceType === 'clone' && !this.hasCustomClone) {
-                this.elements.creditEstimate.innerHTML = `
-                    <strong>Clone Voice:</strong> One-time setup cost ${this.VOICE_CLONE_COST.toLocaleString()} credits (~$${(this.VOICE_CLONE_COST * this.CREDIT_RATE).toFixed(2)})
-                `;
-            } else {
-                this.elements.creditEstimate.innerHTML = `
-                    <strong>Estimated cost:</strong> ${creditsNeeded.toLocaleString()} credits (~$${dollarCost.toFixed(2)}) with ${this.selectedVoice}
-                `;
-            }
-        }
+        // if (this.elements.creditEstimate) {
+        //     if (this.selectedVoiceType === 'clone' && !this.hasCustomClone) {
+        //         this.elements.creditEstimate.innerHTML = `
+        //             <strong>Clone Voice:</strong> One-time setup cost ${this.VOICE_CLONE_COST.toLocaleString()} credits (~$${(this.VOICE_CLONE_COST * this.CREDIT_RATE).toFixed(2)})
+        //         `;
+        //     } else {
+        //         this.elements.creditEstimate.innerHTML = `
+        //             <strong>Estimated cost:</strong> ${creditsNeeded.toLocaleString()} credits (~$${dollarCost.toFixed(2)}) with ${this.selectedVoice}
+        //         `;
+        //     }
+        // }
+            if (this.elements.creditEstimate) {
+                const dollarCost = creditsNeeded * this.CREDIT_RATE;
+                if (this.selectedVoiceType === 'clone' && !this.hasCustomClone) {
+                    this.elements.creditEstimate.innerHTML = `
+                        <strong>Clone Voice:</strong> One-time setup cost ${this.VOICE_CLONE_COST.toLocaleString()} VC <span class="dollar-reference">(≈ $${(this.VOICE_CLONE_COST * this.CREDIT_RATE).toFixed(2)})</span>
+                    `;
+                } else {
+                    this.elements.creditEstimate.innerHTML = `
+                        <strong>Estimated cost:</strong> ${creditsNeeded.toLocaleString()} VC <span class="dollar-reference">(≈ $${dollarCost.toFixed(2)})</span> with ${this.selectedVoice}
+                    `;
+                }
+}
     }
 
     async handleGenerate() {
@@ -260,9 +272,13 @@ class VoiceGenerator {
                 const actualCreditsUsed = result.credits_consumed || creditsNeeded;
                 const dollarCost = actualCreditsUsed * this.CREDIT_RATE;
 
+                // notifications.success(
+                //     `✓ Voice generated with ${this.selectedVoice}! Used ${actualCreditsUsed.toLocaleString()} credits (~$${dollarCost.toFixed(2)})`
+                // );
+
                 notifications.success(
-                    `✓ Voice generated with ${this.selectedVoice}! Used ${actualCreditsUsed.toLocaleString()} credits (~$${dollarCost.toFixed(2)})`
-                );
+                        `✓ Voice generated with ${this.selectedVoice}! Used ${actualCreditsUsed.toLocaleString()} VC (≈ $${dollarCost.toFixed(2)})`
+                    );
 
                 // Update balance immediately
                 if (result.new_balance !== undefined && window.creditDisplayManager) {

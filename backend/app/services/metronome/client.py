@@ -9,6 +9,7 @@ import logging
 from datetime import datetime
 from app.core.config import settings
 from datetime import datetime, timedelta  # Add timedelta here
+import json
 
 # Set up logging for debugging
 logger = logging.getLogger(__name__)
@@ -233,8 +234,11 @@ class MetronomeClient:
         product_id = await self.get_or_create_prepaid_product()
         
         # Calculate amounts properly
-        purchase_amount_dollars = contract_data.get("amount", 0)
-        purchase_amount_cents = int(purchase_amount_dollars * 100)
+        # purchase_amount_dollars = contract_data.get("amount", 0)
+        # purchase_amount_cents = int(purchase_amount_dollars * 100)
+
+        credits_to_purchase = contract_data.get("credits", 0)  # Get credits directly!
+        logger.info(f"CREDITS TO PURCHASE IN CLIENT PY FILE. PAYLOAD FOR CREATE CONTRACT {credits_to_purchase}")
         
         start_date = "2025-07-01T00:00:00.000Z"  # July 1st, 2025 at midnight UTC
         end_date = "2026-07-01T00:00:00.000Z"    # July 1st, 2026 at midnight UTC
@@ -263,9 +267,11 @@ class MetronomeClient:
                     "product_id": product_id,
                     "type": "prepaid",
                     "access_schedule": {
+                        "credit_type_id": "b45eb30b-547f-4e11-91c0-400c0be3370a",
                         "schedule_items": [
                             {
-                                "amount": purchase_amount_cents,
+                                # "amount": purchase_amount_cents,
+                                "amount": credits_to_purchase, 
                                 "starting_at": start_date,
                                 "ending_before": end_date
                             }
@@ -280,30 +286,38 @@ class MetronomeClient:
         if auto_recharge and auto_recharge.get("enabled", False):
             logger.info("Adding auto-recharge configuration to contract")
             
-            # Calculate threshold and recharge amounts in cents
-            threshold_credits = auto_recharge.get("threshold", 25000)
-            threshold_dollars = threshold_credits * 0.00025
-            threshold_cents = int(threshold_dollars * 100)
+            # # Calculate threshold and recharge amounts in cents
+            # threshold_credits = auto_recharge.get("threshold", 25000)
+            # threshold_dollars = threshold_credits * 0.00025
+            # threshold_cents = int(threshold_dollars * 100)
             
-            recharge_dollars = auto_recharge.get("price", 50.0)
-            recharge_cents = int(recharge_dollars * 100)
+            # recharge_dollars = auto_recharge.get("price", 50.0)
+            # recharge_cents = int(recharge_dollars * 100)
+
+            # Calculate threshold and recharge amounts in credits
+            threshold_credits = auto_recharge.get("threshold", 25000)
+            recharge_credits = auto_recharge.get("amount", 200000)
             
             # Add prepaid balance threshold configuration
             payload["prepaid_balance_threshold_configuration"] = {
                 "commit": {
                     "product_id": product_id,
                     "name": "Vocalis Credits Auto-Recharge",
-                    "description": f"Auto-recharge {recharge_dollars:.2f} when balance drops below {threshold_dollars:.2f}"
+                    "description": f"Auto-recharge {recharge_credits:,} VC"
+                    # "description": f"Auto-recharge {recharge_dollars:.2f} when balance drops below {threshold_dollars:.2f}"
                 },
                 "is_enabled": True,
                 "payment_gate_config": {
                     "payment_gate_type": "EXTERNAL"
                 },
-                "threshold_amount": threshold_cents,
-                "recharge_to_amount": recharge_cents
+                # "threshold_amount": threshold_cents,
+                # "recharge_to_amount": recharge_cents
+                 "threshold_amount": threshold_credits,
+                "recharge_to_amount": recharge_credits,
+                "custom_credit_type_id": "b45eb30b-547f-4e11-91c0-400c0be3370a"
             }
             
-            logger.info(f"Auto-recharge: Threshold ${threshold_dollars:.2f} ({threshold_credits} credits), Recharge ${recharge_dollars:.2f}")
+            logger.info(f"Auto-recharge: Threshold ${threshold_credits:.2f} ({threshold_credits} credits), Recharge ${recharge_credits:.2f}")
         else:
             logger.info("Auto-recharge disabled - creating basic contract")
         
@@ -317,15 +331,18 @@ class MetronomeClient:
             
             contract_type = "with auto-recharge" if auto_recharge and auto_recharge.get("enabled") else "basic"
             logger.info(f"✅ Contract created {contract_type}: {contract_id}")
-            logger.info(f"✅ Customer now has ${purchase_amount_dollars:.2f} worth of credits available")
+            # logger.info(f"✅ Customer now has ${purchase_amount_dollars:.2f} worth of credits available")
+            logger.info(f"✅ Customer now has ${credits_to_purchase:.2f} worth of credits available")
+            
             
             return {
                 "id": contract_id,
                 "customer_id": customer_id,
                 "rate_card_id": rate_card_id,
                 "product_id": product_id,
-                "initial_amount_cents": purchase_amount_cents,
-                "initial_amount_dollars": purchase_amount_dollars,
+                # "initial_amount_cents": purchase_amount_cents,
+                # "initial_amount_dollars": purchase_amount_dollars,
+                "initial_amount_credits": credits_to_purchase, 
                 "auto_recharge_enabled": auto_recharge and auto_recharge.get("enabled", False),
                 "status": "created"
             }
@@ -335,75 +352,208 @@ class MetronomeClient:
             raise Exception(f"Failed to create contract in Metronome: {e}")   
               
         
+    # async def get_customer_balance(self, customer_id: str) -> Dict[str, Any]:
+    #     """
+    #     Get customer's current credit balance from Metronome
+    #     SIMPLIFIED VERSION - Trust the balance field from API
+        
+    #     Args:
+    #         customer_id: Metronome customer ID
+            
+    #     Returns:
+    #         Dict containing balance info
+            
+    #     Raises:
+    #         Exception: If API fails or balance cannot be determined
+    #     """
+    #     logger.info(f"Getting balance for customer {customer_id}")
+        
+    #     payload = {
+    #         "customer_id": customer_id,
+    #         "include_balance": True,          # CRITICAL: Gets the calculated balance
+    #         "include_ledgers": False,         # We don't need ledgers for balance calculation
+    #         "include_contract_balances": True # Include contract-specific balances if needed
+    #     }
+        
+    #     response_data = await self._make_request(
+    #         "POST", 
+    #         "/v1/contracts/customerBalances/list", 
+    #         payload
+    #     )
+        
+    #     # Log the response for debugging
+    #     logger.info(f"📊 METRONOME BALANCE RESPONSE: {response_data}")
+    #     print("=" * 70)
+    #     print("📊 METRONOME CUSTOMER BALANCE RESPONSE:")
+    #     print(f"   Customer ID: {customer_id}")
+    #     print(f"   Full Response: {response_data}")
+    #     print("=" * 70)
+        
+    #     # Get the balance entries
+    #     balances = response_data.get("data", [])
+        
+    #     if not balances:
+    #         raise Exception(f"No balance data found for customer {customer_id}. Customer or contract may not exist.")
+        
+    #     # Sum all balance fields - Metronome already calculated these
+    #     total_balance_cents = 0
+    #     for balance_entry in balances:
+    #         balance_cents = balance_entry.get("balance", 0)
+    #         entry_type = balance_entry.get("type", "unknown")
+    #         product_name = balance_entry.get("product", {}).get("name", "unknown")
+            
+    #         total_balance_cents += balance_cents
+    #         logger.info(f"📊 Found {entry_type} balance: {balance_cents} cents from {product_name}")
+        
+    #     # Convert cents to credits: $0.00025 per credit = 0.025 cents per credit
+    #     total_available_credits = int(total_balance_cents / 0.025)
+    #     dollar_value = total_balance_cents / 100  # Convert cents to dollars
+        
+    #     logger.info(f"✅ Customer {customer_id} balance: {total_available_credits} credits (${dollar_value:.2f})")
+        
+    #     return {
+    #         "customer_id": customer_id,
+    #         "balance": total_available_credits,
+    #         "balance_cents": total_balance_cents,
+    #         "currency": "USD",
+    #         "dollar_value": dollar_value,
+    #         "last_updated": datetime.now().isoformat(),
+    #         "source": "metronome_api"
+    #     }
+ 
     async def get_customer_balance(self, customer_id: str) -> Dict[str, Any]:
         """
         Get customer's current credit balance from Metronome
-        SIMPLIFIED VERSION - Trust the balance field from API
-        
+        UPDATED: Now handles custom pricing units (Vocalis Credits)
+
         Args:
             customer_id: Metronome customer ID
             
         Returns:
             Dict containing balance info
-            
-        Raises:
-            Exception: If API fails or balance cannot be determined
         """
+        # Add your custom credit type ID (replace with actual ID from Metronome)
+        VOCALIS_CREDIT_TYPE_ID = "b45eb30b-547f-4e11-91c0-400c0be3370a"  
+
         logger.info(f"Getting balance for customer {customer_id}")
-        
+
         payload = {
             "customer_id": customer_id,
-            "include_balance": True,          # CRITICAL: Gets the calculated balance
-            "include_ledgers": False,         # We don't need ledgers for balance calculation
-            "include_contract_balances": True # Include contract-specific balances if needed
+            "include_balance": True,
+            "include_ledgers": True,  # Include ledgers for debugging
+            "include_contract_balances": True
         }
-        
+
         response_data = await self._make_request(
             "POST", 
             "/v1/contracts/customerBalances/list", 
             payload
         )
-        
-        # Log the response for debugging
+
+        # Log the full response for debugging
         logger.info(f"📊 METRONOME BALANCE RESPONSE: {response_data}")
         print("=" * 70)
         print("📊 METRONOME CUSTOMER BALANCE RESPONSE:")
         print(f"   Customer ID: {customer_id}")
-        print(f"   Full Response: {response_data}")
+        print(f"   Full Response: {json.dumps(response_data, indent=2)}")
         print("=" * 70)
-        
+
         # Get the balance entries
         balances = response_data.get("data", [])
-        
+
         if not balances:
-            raise Exception(f"No balance data found for customer {customer_id}. Customer or contract may not exist.")
+            raise Exception(f"No balance data found for customer {customer_id}")
+
+        # Look for Vocalis Credits balance
+        vocalis_balance = 0
+        usd_balance_for_reference = 0
+        found_vocalis_credits = False
+
+        # for balance_entry in balances:
+        #     credit_type = balance_entry.get("credit_type", {})
+        #     credit_type_id = credit_type.get("id")
+        #     credit_type_name = credit_type.get("name", "unknown")
+        #     raw_balance = balance_entry.get("balance", 0)
         
-        # Sum all balance fields - Metronome already calculated these
-        total_balance_cents = 0
         for balance_entry in balances:
-            balance_cents = balance_entry.get("balance", 0)
-            entry_type = balance_entry.get("type", "unknown")
-            product_name = balance_entry.get("product", {}).get("name", "unknown")
+            # Credit type is inside access_schedule
+            access_schedule = balance_entry.get("access_schedule", {})
+            credit_type = access_schedule.get("credit_type", {})
+            credit_type_id = credit_type.get("id")
+            credit_type_name = credit_type.get("name", "unknown")
+            raw_balance = balance_entry.get("balance", 0)
+
+            # Detailed logging for debugging
+            logger.info(f"📊 Balance Entry Debug:")
+            logger.info(f"   Credit Type: {credit_type_name}")
+            logger.info(f"   Credit Type ID: {credit_type_id}")
+            logger.info(f"   Raw Balance Value: {raw_balance}")
             
-            total_balance_cents += balance_cents
-            logger.info(f"📊 Found {entry_type} balance: {balance_cents} cents from {product_name}")
-        
-        # Convert cents to credits: $0.00025 per credit = 0.025 cents per credit
-        total_available_credits = int(total_balance_cents / 0.025)
-        dollar_value = total_balance_cents / 100  # Convert cents to dollars
-        
-        logger.info(f"✅ Customer {customer_id} balance: {total_available_credits} credits (${dollar_value:.2f})")
-        
+            print(f"📊 BALANCE ENTRY:")
+            print(f"   Type: {credit_type_name} ({credit_type_id})")
+            print(f"   Balance: {raw_balance}")
+            print(f"   Entry Type: {balance_entry.get('type', 'unknown')}")
+            
+            # Check ledger entries for more clues
+            ledger = balance_entry.get("ledger", [])
+            if ledger:
+                print(f"   Ledger entries: {len(ledger)}")
+                for entry in ledger[:2]:  # Show first 2 entries
+                    print(f"     - {entry.get('type')}: {entry.get('amount')}")
+            
+            # Handle different credit types
+            if credit_type_id == VOCALIS_CREDIT_TYPE_ID:
+                found_vocalis_credits = True
+                vocalis_balance += raw_balance
+                logger.info(f"✅ Found Vocalis Credits: {raw_balance} VC")
+                
+            elif credit_type_id == "2714e483-4ff1-48e4-9e25-ac732e8f24f2":  # USD cents
+                usd_balance_for_reference += raw_balance
+                logger.info(f"📊 Found USD balance: {raw_balance} cents")
+
+        # Determine final balance and handle edge cases
+        if found_vocalis_credits:
+            # Using Vocalis Credits
+            total_balance = vocalis_balance
+            currency = "VC"
+            dollar_value = vocalis_balance * 0.00025  # 1 VC = $0.00025
+            
+            logger.info(f"✅ Using Vocalis Credits balance: {total_balance} VC")
+            
+        else:
+            # Fallback to USD calculation if no Vocalis Credits found
+            logger.warning(f"⚠️ No Vocalis Credits found, falling back to USD calculation")
+            
+            # Convert cents to credits using old logic
+            total_balance = int(usd_balance_for_reference / 0.025) if usd_balance_for_reference > 0 else 0
+            currency = "USD"
+            dollar_value = usd_balance_for_reference / 100
+            
+            print("=" * 70)
+            print("⚠️ FALLBACK TO USD CALCULATION:")
+            print(f"   USD cents: {usd_balance_for_reference}")
+            print(f"   Calculated credits: {total_balance}")
+            print(f"   This should not happen once Vocalis Credits are set up!")
+            print("=" * 70)
+
+        logger.info(f"✅ Final balance for {customer_id}: {total_balance} {currency}")
+
         return {
             "customer_id": customer_id,
-            "balance": total_available_credits,
-            "balance_cents": total_balance_cents,
-            "currency": "USD",
+            "balance": total_balance,
+            "currency": currency,
             "dollar_value": dollar_value,
             "last_updated": datetime.now().isoformat(),
-            "source": "metronome_api"
-        }
- 
+            "source": "metronome_api",
+            "credit_type_id": VOCALIS_CREDIT_TYPE_ID if found_vocalis_credits else "2714e483-4ff1-48e4-9e25-ac732e8f24f2",
+            "debug_info": {
+                "found_vocalis_credits": found_vocalis_credits,
+                "vocalis_balance": vocalis_balance,
+                "usd_balance_cents": usd_balance_for_reference,
+                "balance_entries_count": len(balances)
+            }
+    }
+
     async def release_threshold_billing(self, workflow_id: str, outcome: str) -> Dict[str, Any]:
         """
         ✅ FIXED: Release external payment gate threshold commit

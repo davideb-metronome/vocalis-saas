@@ -129,7 +129,14 @@ class CreditDisplayManager {
     // Replace the updateCreditsDisplay method in frontend/static/js/components/credit-display.js
 
     updateCreditsDisplay(remaining, purchased, used, source = 'unknown') {
-        console.log('📊 Updating credits display:', { remaining, purchased, used, source });
+        // console.log('📊 Updating credits display:', { remaining, purchased, used, source });
+        
+        console.log('📊 Updating credits display:', { 
+        remaining: `${remaining} VC`, 
+        purchased: `${purchased} VC`, 
+        used: `${used} VC`, 
+        source 
+        });
         
         const dollarValue = remaining * this.CREDIT_RATE;
         
@@ -170,12 +177,18 @@ class CreditDisplayManager {
         // Step 3: Update the display with corrected values
         
         // ✅ RESTORE OPACITY: Remove loading state
-        if (this.elements.creditsBalance) {
-            this.elements.creditsBalance.textContent = remaining.toLocaleString();
-            this.elements.creditsBalance.style.opacity = '1'; // Restore full opacity
-            this.elements.creditsBalance.style.color = ''; // Reset any error colors
-        }
+        // if (this.elements.creditsBalance) {
+        //     this.elements.creditsBalance.textContent = remaining.toLocaleString();
+        //     this.elements.creditsBalance.style.opacity = '1'; // Restore full opacity
+        //     this.elements.creditsBalance.style.color = ''; // Reset any error colors
+        // }
         
+        if (this.elements.creditsBalance) {
+            this.elements.creditsBalance.textContent = `${remaining.toLocaleString()} VC`;  // ← Add " VC"
+            this.elements.creditsBalance.style.opacity = '1';
+            this.elements.creditsBalance.style.color = '';
+        }
+
         if (this.elements.balanceValue) {
             this.elements.balanceValue.textContent = `≈ $${dollarValue.toFixed(2)} value`;
             this.elements.balanceValue.style.color = ''; // Reset any error colors

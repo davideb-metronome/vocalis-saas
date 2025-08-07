@@ -340,3 +340,20 @@ input:checked + .toggle-slider:before {
     background: var(--primary-blue);
     color: white;
 }
+.dollar-reference {
+    font-size: 0.875em;
+    color: var(--gray-500);
+    font-weight: normal;
+}
+
+.total-credits {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--gray-800);
+}
+
+.total-usd {
+    font-size: 14px;
+    color: var(--gray-500);
+    margin-top: 2px;
+}
