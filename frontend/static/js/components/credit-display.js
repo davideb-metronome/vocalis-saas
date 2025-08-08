@@ -132,9 +132,9 @@ class CreditDisplayManager {
         // console.log('📊 Updating credits display:', { remaining, purchased, used, source });
         
         console.log('📊 Updating credits display:', { 
-        remaining: `${remaining} VC`, 
-        purchased: `${purchased} VC`, 
-        used: `${used} VC`, 
+        remaining: `${remaining} credits`, 
+        purchased: `${purchased} credits`, 
+        used: `${used} credits`, 
         source 
         });
         
@@ -184,7 +184,7 @@ class CreditDisplayManager {
         // }
         
         if (this.elements.creditsBalance) {
-            this.elements.creditsBalance.textContent = `${remaining.toLocaleString()} VC`;  // ← Add " VC"
+            this.elements.creditsBalance.textContent = `${remaining.toLocaleString()}`;  // ← Add " VC"
             this.elements.creditsBalance.style.opacity = '1';
             this.elements.creditsBalance.style.color = '';
         }

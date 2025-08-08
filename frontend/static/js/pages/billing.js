@@ -15,9 +15,6 @@ class BillingPage {
             amountInput: document.getElementById('amount-input'),
             amountDisplay: document.getElementById('amount-display'),
             creditsInfo: document.getElementById('credits-info'),
-            standardMinutes: document.getElementById('standard-minutes'),
-            premiumMinutes: document.getElementById('premium-minutes'),
-            perCreditCost: document.getElementById('per-credit-cost'),
             totalAmount: document.getElementById('total-amount'),
             purchaseBtn: document.getElementById('purchase-btn'),
             closeBtn: document.getElementById('close-btn')
@@ -79,65 +76,93 @@ class BillingPage {
         notifications.info(`${this.calculator.formatCurrency(this.selectedAmount)} = ${this.calculator.formatNumber(this.selectedCredits)} credits`);
     }
 
+    // updateDisplay() {
+    //     const breakdown = this.calculator.calculateVoiceBreakdown(this.selectedCredits);
+        
+    //     // Update main display
+    //     // if (this.elements.amountDisplay) {
+    //     //     this.elements.amountDisplay.textContent = this.calculator.formatCurrency(this.selectedAmount);
+    //     // }
+
+    //     if (this.elements.amountDisplay) {
+    //         this.elements.amountDisplay.textContent = `${this.calculator.formatNumber(this.selectedCredits)} VC`;
+    //     }
+        
+    //     // if (this.elements.creditsInfo) {
+    //     //     this.elements.creditsInfo.textContent = `${this.calculator.formatNumber(this.selectedCredits)} credits`;
+    //     // }
+        
+    //     if (this.elements.creditsInfo) {
+    //         this.elements.creditsInfo.textContent = `≈ ${this.calculator.formatCurrency(this.selectedAmount)}`;
+    //     }
+    //     // Update breakdown
+    //     if (this.elements.standardMinutes) {
+    //         this.elements.standardMinutes.textContent = `~${breakdown.standardMinutes} minutes`;
+    //     }
+        
+    //     if (this.elements.premiumMinutes) {
+    //         this.elements.premiumMinutes.textContent = `~${breakdown.premiumMinutes} minutes`;
+    //     }
+        
+    //     if (this.elements.perCreditCost) {
+    //         this.elements.perCreditCost.textContent = `$${breakdown.perCreditCost.toFixed(5)}`;
+    //     }
+        
+    //     // Update total and button
+    //     // if (this.elements.totalAmount) {
+    //     //     this.elements.totalAmount.textContent = this.calculator.formatCurrency(this.selectedAmount);
+    //     // }
+        
+    //     if (this.elements.totalAmount) {
+    //         this.elements.totalAmount.innerHTML = `
+    //             <div class="total-credits">${this.calculator.formatNumber(this.selectedCredits)} VC</div>
+    //             <div class="total-usd">(${this.calculator.formatCurrency(this.selectedAmount)})</div>
+    //         `;
+    //     }
+
+    //     // if (this.elements.purchaseBtn) {
+    //     //     this.elements.purchaseBtn.textContent = `Purchase ${this.calculator.formatCurrency(this.selectedAmount)} of credits`;
+    //     // }
+        
+
+    //     if (this.elements.purchaseBtn) {
+    //         this.elements.purchaseBtn.textContent = `Purchase ${this.calculator.formatNumber(this.selectedCredits)} VC`;
+    //     }
+    
+    //     // Update input field
+    //     if (this.elements.amountInput) {
+    //         this.elements.amountInput.value = `$${this.selectedAmount.toFixed(0)}`;
+    //     }
+    // }
+
+
     updateDisplay() {
         const breakdown = this.calculator.calculateVoiceBreakdown(this.selectedCredits);
-        
-        // Update main display
-        // if (this.elements.amountDisplay) {
-        //     this.elements.amountDisplay.textContent = this.calculator.formatCurrency(this.selectedAmount);
-        // }
 
+        // Update main display
         if (this.elements.amountDisplay) {
-            this.elements.amountDisplay.textContent = `${this.calculator.formatNumber(this.selectedCredits)} VC`;
+            this.elements.amountDisplay.textContent = `${this.calculator.formatNumber(this.selectedCredits)} credits`;
         }
-        
-        // if (this.elements.creditsInfo) {
-        //     this.elements.creditsInfo.textContent = `${this.calculator.formatNumber(this.selectedCredits)} credits`;
-        // }
-        
+
         if (this.elements.creditsInfo) {
             this.elements.creditsInfo.textContent = `≈ ${this.calculator.formatCurrency(this.selectedAmount)}`;
         }
-        // Update breakdown
-        if (this.elements.standardMinutes) {
-            this.elements.standardMinutes.textContent = `~${breakdown.standardMinutes} minutes`;
-        }
-        
-        if (this.elements.premiumMinutes) {
-            this.elements.premiumMinutes.textContent = `~${breakdown.premiumMinutes} minutes`;
-        }
-        
-        if (this.elements.perCreditCost) {
-            this.elements.perCreditCost.textContent = `$${breakdown.perCreditCost.toFixed(5)}`;
-        }
-        
-        // Update total and button
-        // if (this.elements.totalAmount) {
-        //     this.elements.totalAmount.textContent = this.calculator.formatCurrency(this.selectedAmount);
-        // }
-        
-        if (this.elements.totalAmount) {
-            this.elements.totalAmount.innerHTML = `
-                <div class="total-credits">${this.calculator.formatNumber(this.selectedCredits)} VC</div>
-                <div class="total-usd">(${this.calculator.formatCurrency(this.selectedAmount)})</div>
-            `;
-        }
 
-        // if (this.elements.purchaseBtn) {
-        //     this.elements.purchaseBtn.textContent = `Purchase ${this.calculator.formatCurrency(this.selectedAmount)} of credits`;
-        // }
-        
+        // Update total
+        if (this.elements.totalAmount) {
+            this.elements.totalAmount.textContent = `${this.calculator.formatNumber(this.selectedCredits)} credits`;
+        }
 
         if (this.elements.purchaseBtn) {
-            this.elements.purchaseBtn.textContent = `Purchase ${this.calculator.formatNumber(this.selectedCredits)} VC`;
+            this.elements.purchaseBtn.textContent = `Purchase ${this.calculator.formatNumber(this.selectedCredits)} credits`;
         }
-    
+
         // Update input field
         if (this.elements.amountInput) {
             this.elements.amountInput.value = `$${this.selectedAmount.toFixed(0)}`;
         }
     }
-
+    
     async handlePurchase() {
         try {
             // Validate auto-recharge configuration

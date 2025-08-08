@@ -101,7 +101,8 @@ async def handle_metronome_alerts(request: Request):
                 # 💳 FAKE THE PAYMENT - Just release with "paid" outcome
                 print(f"💳 FAKING PAYMENT SUCCESS - Releasing commit...")
                 
-                result = await metronome_client.release_threshold_billing(workflow_id, "paid")
+                # result = await metronome_client.release_threshold_billing(workflow_id, "paid")
+                result = await metronome_client.safe_release_threshold_billing(workflow_id, "paid")
                 
                 if result.get('success'):
                     print(f"✅ COMMIT RELEASED SUCCESSFULLY!")

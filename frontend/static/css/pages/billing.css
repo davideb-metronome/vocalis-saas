@@ -500,6 +500,13 @@ body {
     color: var(--primary-blue);
 }
 
+.per-credit-info {
+    text-align: center;
+    font-size: 14px;
+    color: var(--gray-500);
+    margin-top: 20px;
+}
+
 /* Mobile Responsive */
 @media (max-width: 768px) {
     .container {

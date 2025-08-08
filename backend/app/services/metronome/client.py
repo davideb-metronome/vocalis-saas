@@ -705,6 +705,25 @@ class MetronomeClient:
         except Exception as e:
             logger.error(f"❌ Failed to ingest usage event: {e}")
             raise Exception(f"Failed to ingest usage event to Metronome: {e}")
+    
+
+    async def safe_release_threshold_billing(self, workflow_id: str, outcome: str) -> Dict[str, Any]:
+        """Safely release threshold billing, handling already-committed states"""
+        try:
+            result = await self.release_threshold_billing(workflow_id, outcome)
+            logger.info(f"✅ Successfully released workflow {workflow_id}")
+            return {"success": True, "result": result}
+            
+        except Exception as e:
+            error_msg = str(e)
+            if "not in COMMITTING state" in error_msg or "already in state COMMITTED" in error_msg:
+                # This is OK - someone else processed it
+                logger.info(f"ℹ️ Workflow {workflow_id} already committed (this is normal)")
+                return {"success": True, "already_committed": True}
+            else:
+                # Real error
+                logger.error(f"❌ Failed to release workflow {workflow_id}: {error_msg}")
+                raise
 
 # Global client instance
 metronome_client = MetronomeClient()
