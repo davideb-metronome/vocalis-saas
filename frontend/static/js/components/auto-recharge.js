@@ -9,14 +9,13 @@ class AutoRechargeManager {
         this.METRONOME_MIN_AMOUNT = 0; // Minimum auto-recharge amount
         this.enabled = false;
         this.selectedThreshold = '25000';
-        this.selectedRechargeAmount = { credits: '200000', price: '50.00' };
+        this.selectedRechargeAmount = { credits: '50000', price: '12.50' };
 
         this.elements = {
             toggle: document.getElementById('autorecharge-toggle'),
             options: document.getElementById('autorecharge-options'),
             thresholdOptions: document.querySelectorAll('.threshold-option'),
-            rechargeInput: document.getElementById('recharge-input'),
-            presetButtons: document.querySelectorAll('.preset-btn'),
+            rechargeAmountOptions: document.querySelectorAll('.recharge-amount-option'),
             warning: document.getElementById('validation-warning'),
             warningMessage: document.getElementById('warning-message')
         };
@@ -34,28 +33,18 @@ class AutoRechargeManager {
         this.elements.toggle.addEventListener('change', () => this.toggleAutoRecharge());
         
         // Threshold selection
-        this.elements.thresholdOptions.forEach(option => {
-            option.addEventListener('click', (e) => this.selectThreshold(e.currentTarget));
-        });
-
-        // Recharge amount input
-        if (this.elements.rechargeInput) {
-            this.elements.rechargeInput.addEventListener('input', (e) => {
-                e.target.value = this.calculator.formatInputValue(e.target.value);
-            });
-            
-            this.elements.rechargeInput.addEventListener('change', (e) => {
-                this.updateRechargeAmount(e.target.value);
+        if (this.elements.thresholdOptions.length > 0) {
+            this.elements.thresholdOptions.forEach(option => {
+                option.addEventListener('click', (e) => this.selectThreshold(e.currentTarget));
             });
         }
 
-        // Preset buttons
-        this.elements.presetButtons.forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const amount = e.target.dataset.amount;
-                this.setRechargePreset(amount);
+        // Recharge amount selection
+        if (this.elements.rechargeAmountOptions.length > 0) {
+            this.elements.rechargeAmountOptions.forEach(option => {
+                option.addEventListener('click', (e) => this.selectRechargeAmount(e.currentTarget));
             });
-        });
+        }
 
         console.log('✅ Auto-recharge manager initialized');
     }
@@ -89,57 +78,27 @@ class AutoRechargeManager {
         notifications.info(`Threshold set to ${this.calculator.formatNumber(parseInt(threshold))} credits (${this.calculator.formatCurrency(thresholdDollars)})`);
     }
 
-    updateRechargeAmount(value) {
-        const numValue = this.calculator.parseDollarInput(value);
+    selectRechargeAmount(element) {
+        const amount = element.dataset.amount;
         
-        if (numValue < this.METRONOME_MIN_AMOUNT) {
-            notifications.warning(`⚠️ Auto-recharge amount must be at least ${this.calculator.formatCurrency(this.METRONOME_MIN_AMOUNT)} (90,000 credits)`);
-            this.elements.rechargeInput.style.borderColor = 'var(--error-red)';
-            return;
-        }
+        // Update selection
+        this.elements.rechargeAmountOptions.forEach(opt => opt.classList.remove('selected'));
+        element.classList.add('selected');
         
-        if (numValue > 1000) {
-            notifications.warning('⚠️ Auto-recharge amount cannot exceed $1,000');
-            this.elements.rechargeInput.style.borderColor = 'var(--error-red)';
-            return;
-        }
+        // Calculate credits and price
+        const credits = parseInt(amount);
+        const price = this.calculator.creditsToDollars(credits);
         
-        // Reset border color on valid input
-        this.elements.rechargeInput.style.borderColor = '';
-        
-        // Calculate credits
-        const credits = this.calculator.dollarsToCredits(numValue);
-        
-        // Update selected amount
         this.selectedRechargeAmount = {
-            credits: credits.toString(),
-            price: numValue.toFixed(2)
+            credits: amount,
+            price: price.toFixed(2)
         };
         
-        // Update preset button states
-        this.updatePresetButtons(numValue);
-        
         this.validateConfiguration();
-        notifications.info(`Auto-recharge set to ${this.calculator.formatNumber(credits)} credits (${this.calculator.formatCurrency(numValue)})`);
+        
+        notifications.info(`Auto-recharge set to ${this.calculator.formatNumber(credits)} credits (${this.calculator.formatCurrency(price)})`);
     }
 
-    setRechargePreset(amount) {
-        const numAmount = parseFloat(amount);
-        this.elements.rechargeInput.value = this.calculator.formatCurrency(numAmount);
-        this.updateRechargeAmount(this.calculator.formatCurrency(numAmount));
-    }
-
-    updatePresetButtons(selectedAmount) {
-        this.elements.presetButtons.forEach(btn => {
-            btn.classList.remove('active');
-            const btnAmount = parseFloat(btn.dataset.amount);
-            if (btnAmount === selectedAmount) {
-                btn.classList.add('active');
-            }
-        });
-    }
-
-    
     validateConfiguration(purchaseAmount = null) {
         if (!this.enabled) {
             this.hideWarning();
@@ -157,21 +116,19 @@ class AutoRechargeManager {
             this.showWarning(
                 `Auto-recharge amount (${this.calculator.formatCurrency(rechargeDollars)}) is below Metronome's minimum requirement of ${this.calculator.formatCurrency(this.METRONOME_MIN_AMOUNT)}. Please increase the auto-recharge amount.`
             );
-            return false; // Still block for this - it's a hard requirement
+            return false;
         }
 
-        // ✅ FIXED: Check for immediate trigger risk but don't block - just warn
+        // Check for immediate trigger risk but don't block - just warn
         if (purchaseAmount && thresholdDollars >= purchaseAmount * 0.85) {
             this.showWarning(
                 `Warning: Your threshold (${this.calculator.formatCurrency(thresholdDollars)}) is close to your purchase amount (${this.calculator.formatCurrency(purchaseAmount)}). Auto-recharge may trigger immediately, charging an additional ${this.calculator.formatCurrency(rechargeDollars)}. Total charge would be ${this.calculator.formatCurrency(purchaseAmount + rechargeDollars)}.`
             );
-            // ✅ CHANGED: Don't return false - just show warning and allow purchase
-            // return false; // ← REMOVED THIS LINE
         } else {
             this.hideWarning();
         }
         
-        return true; // ✅ Always return true (allow purchase) unless it's the hard minimum requirement
+        return true;
     }
 
     showWarning(message) {
