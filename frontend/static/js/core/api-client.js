@@ -68,7 +68,7 @@ class VocalisAPI {
         
         return response;
     }
-    
+
     /**
      * Purchase credits
      */
@@ -82,7 +82,27 @@ class VocalisAPI {
             body: JSON.stringify(purchaseData),
         });
     }
-    
+
+    /**
+     * Get available plans
+     */
+    async getPlans() {
+        return await this.makeRequest('/billing/plans');
+    }
+
+    /**
+     * Select a billing plan
+     */
+    async selectPlan(planId) {
+        if (!this.customerId) {
+            throw new Error('Customer ID not found. Please sign up first.');
+        }
+        return await this.makeRequest(`/billing/plan/select?customer_id=${this.customerId}`, {
+            method: 'POST',
+            body: JSON.stringify({ plan: planId })
+        });
+    }
+
     /**
      * Get credit balance
      */

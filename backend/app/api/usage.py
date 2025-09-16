@@ -8,7 +8,7 @@ from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 from typing import Dict, Any, Optional
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 
 from app.services.metronome import metronome_client
@@ -43,10 +43,12 @@ def build_voice_generation_event(request: VoiceGenerationRequest, customer_id: s
     Returns:
         Formatted event payload for Metronome
     """
+    # Use explicit UTC timestamps per Metronome guidance
+    ts_utc = datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace('+00:00', 'Z')
     return {
         "customer_id": customer_id,
         "event_type": "voice_generation",
-        "timestamp": datetime.now().isoformat() + "Z",
+        "timestamp": ts_utc,
         "transaction_id": str(uuid.uuid4()),
         "properties": {
             "voice_type": request.voice_type,  # "standard" or "premium"
@@ -65,10 +67,11 @@ def build_voice_cloning_event(request: VoiceGenerationRequest, customer_id: str)
     Returns:
         Formatted event payload for Metronome
     """
+    ts_utc = datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace('+00:00', 'Z')
     return {
         "customer_id": customer_id,
         "event_type": "voice_cloning",
-        "timestamp": datetime.now().isoformat() + "Z",
+        "timestamp": ts_utc,
         "transaction_id": str(uuid.uuid4()),
         "properties": {
             "voice_id": 1  # Could be dynamic based on user preferences

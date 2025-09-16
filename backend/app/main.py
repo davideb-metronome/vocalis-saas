@@ -9,7 +9,7 @@ from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
-from .api import auth, billing, usage, webhooks
+from .api import auth, billing, usage, webhooks, health
 from .core.config import settings
 
 from fastapi.responses import StreamingResponse
@@ -43,6 +43,7 @@ app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(billing.router, prefix="/api/billing", tags=["Billing"])
 app.include_router(usage.router, prefix="/api/usage", tags=["Usage"])
 app.include_router(webhooks.router, prefix="/api/webhooks", tags=["Webhooks"])
+app.include_router(health.router, prefix="/health", tags=["Health"]) 
 
 # Frontend routes
 from fastapi import Request
@@ -133,8 +134,9 @@ async def broadcast_event(customer_id: str, event_data: dict):
 
 
 if __name__ == "__main__":
+    # Use fully-qualified module path so uvicorn's reloader can import correctly
     uvicorn.run(
-        "main:app",
+        "app.main:app",
         host="0.0.0.0",
         port=8000,
         reload=True

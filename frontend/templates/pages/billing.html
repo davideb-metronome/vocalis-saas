@@ -6,9 +6,9 @@
     <title>Purchase Credits - Vocalis</title>
     
     <!-- CSS -->
-    <link rel="stylesheet" href="/static/css/main.css">
-    <link rel="stylesheet" href="/static/css/components.css">
-    <link rel="stylesheet" href="/static/css/pages/billing.css">
+    <link rel="stylesheet" href="/static/css/main.css?v=2">
+    <link rel="stylesheet" href="/static/css/components.css?v=2">
+    <link rel="stylesheet" href="/static/css/pages/billing.css?v=2">
 </head>
 <body>
     <div class="container">
@@ -43,10 +43,50 @@
             <button class="close-btn" id="close-btn">×</button>
             
             <div class="card-header">
-                <div class="card-title">Purchase Credits</div>
-                <div class="card-subtitle">Buy credits to power your voice generation and use them flexibly across all Vocalis features</div>
-                <div class="card-subtitle">Per credit cost: $0.00025</div>
+                <div class="card-title">Billing</div>
+                <div class="card-subtitle">Choose a plan or buy prepaid credits. Credits power all Vocalis features.</div>
                 
+                <!-- Tabs -->
+                <div class="billing-tabs" role="tablist">
+                    <button class="billing-tab active" id="tab-plans" data-target="#plans-section" role="tab" aria-selected="true">Plans</button>
+                    <button class="billing-tab" id="tab-credits" data-target="#credits-section" role="tab" aria-selected="false">Prepaid Credits</button>
+                </div>
+            
+                <!-- Plan Section -->
+                <section id="plans-section" class="tab-section">
+                    <div id="plan-status" class="plan-status hidden"></div>
+                    <div class="plans-grid">
+                        <div class="plan-card" data-plan="trial">
+                            <div class="plan-name">Free Trial</div>
+                            <div class="plan-price">$0</div>
+                            <div class="plan-credits" id="trial-credits">50,000 credits for 14 days</div>
+                            <button class="btn-large plan-select-btn" data-plan="trial">Start Free Trial</button>
+                        </div>
+                        <div class="plan-card" data-plan="creator">
+                            <div class="plan-name">Creator</div>
+                            <div class="plan-price" id="creator-price">$49 / month</div>
+                            <div class="plan-credits" id="creator-credits">196,000 credits / month</div>
+                            <button class="btn-large plan-select-btn" data-plan="creator">Choose Creator</button>
+                        </div>
+                        <div class="plan-card" data-plan="pro">
+                            <div class="plan-name">Pro</div>
+                            <div class="plan-price" id="pro-price">$199 / month</div>
+                            <div class="plan-credits" id="pro-credits">796,000 credits / month</div>
+                            <button class="btn-large plan-select-btn" data-plan="pro">Choose Pro</button>
+                        </div>
+                        <div class="plan-card" data-plan="enterprise">
+                            <div class="plan-name">Enterprise</div>
+                            <div class="plan-price">Custom</div>
+                            <div class="plan-credits">Tailored credits & support</div>
+                            <button class="btn-large plan-select-btn" data-plan="enterprise">Contact Sales</button>
+                        </div>
+                    </div>
+                    <div class="plans-note">All plans allocate credits in Vocalis credits (VC). You can also purchase add‑on credits anytime.</div>
+                </section>
+            </div>
+            
+            <!-- Prepaid Credits Section -->
+            <section id="credits-section" class="tab-section hidden">
                 <!-- Voice Options Preview -->
                 <div class="voice-preview">
                     <div class="voice-tiers">
@@ -71,19 +111,18 @@
                         💡 <strong>Pro tip:</strong> 1,000 characters ≈ 1 minute of audio
                     </p>
                 </div>
-            </div>
-            
-            <!-- Credit Amount Input -->
-            <div class="credit-packages">
-                <div class="package-label">Credit Amount</div>
-                <input 
-                    type="text" 
-                    class="custom-input" 
-                    id="amount-input"
-                    placeholder="Enter amount in credits" 
-                    value="100,000"
-                >
-            </div>
+
+                <!-- Credit Amount Input -->
+                <div class="credit-packages">
+                    <div class="package-label">Credit Amount</div>
+                    <input 
+                        type="text" 
+                        class="custom-input" 
+                        id="amount-input"
+                        placeholder="Enter amount in credits" 
+                        value="100,000"
+                    >
+                </div>
             
             <!-- Auto-recharge Section -->
             <div class="auto-recharge-section">
@@ -146,6 +185,7 @@
             <div class="terms-text">
                 Credits never expire and can be used across all Vocalis features. By clicking "Purchase Credits" you agree to <a href="#">Vocalis's Terms of Service</a>
             </div>
+            </section>
         </div>
         
         <!-- Back Link -->
@@ -158,11 +198,21 @@
     <div id="notification-container"></div>
 
     <!-- JavaScript -->
-    <script src="/static/js/core/api-client.js"></script>
-    <script src="/static/js/core/notifications.js"></script>
-    <script src="/static/js/components/form-validation.js"></script>
-    <script src="/static/js/components/credit-calculator.js"></script>
-    <script src="/static/js/components/auto-recharge.js"></script>
-    <script src="/static/js/pages/billing.js"></script>
+    <script src="/static/js/core/api-client.js?v=2"></script>
+    <script src="/static/js/core/notifications.js?v=2"></script>
+    <script src="/static/js/components/form-validation.js?v=2"></script>
+    <script src="/static/js/components/credit-calculator.js?v=2"></script>
+    <script src="/static/js/components/auto-recharge.js?v=2"></script>
+    <script src="/static/js/components/plan-selector.js?v=2"></script>
+    <script src="/static/js/pages/billing.js?v=2"></script>
+    <script>
+        // Initialize tabs and plan selector after DOM is ready
+        document.addEventListener('DOMContentLoaded', () => {
+            window.planSelector = new PlanSelector(window.vocalisAPI);
+            // Default to Plans tab
+            const plansTab = document.getElementById('tab-plans');
+            if (plansTab) plansTab.click();
+        });
+    </script>
 </body>
 </html>

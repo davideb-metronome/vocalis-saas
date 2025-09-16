@@ -6,7 +6,7 @@ Integrates with Metronome's billing API for prepaid credits system
 from typing import Dict, Any, Optional, List
 import httpx
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from app.core.config import settings
 from datetime import datetime, timedelta  # Add timedelta here
 import json
@@ -141,7 +141,7 @@ class MetronomeClient:
         
 
 
-    async def get_rate_card(self, rate_card_name: str = "Vocalis 2025") -> Optional[str]:
+    async def get_rate_card(self, rate_card_name: Optional[str] = None) -> Optional[str]:
         """
         Retrieve rate card ID by name
         
@@ -151,6 +151,8 @@ class MetronomeClient:
         Returns:
             Rate card ID if found, None otherwise
         """
+        # Default to configured rate card name if not provided
+        rate_card_name = rate_card_name or settings.METRONOME_RATE_CARD_NAME
         logger.info(f"Looking for '{rate_card_name}' rate card...")
         
         try:
@@ -158,13 +160,25 @@ class MetronomeClient:
             
             # Search for the specified rate card
             rate_cards = response_data.get("data", [])
+            # 1) Exact (case-insensitive) match first
+            target = (rate_card_name or "").strip().lower()
             for rate_card in rate_cards:
-                if rate_card.get("name") == rate_card_name:
+                if (rate_card.get("name", "").strip().lower()) == target:
                     rate_card_id = rate_card.get("id")
                     logger.info(f"✅ Found '{rate_card_name}' rate card: {rate_card_id}")
                     return rate_card_id
-            
-            logger.warning(f"❌ '{rate_card_name}' rate card not found")
+
+            # 2) Fallback: fuzzy token match (ignores words like 'rate' and 'card')
+            tokens = [t for t in target.split() if t not in {"rate", "card", "the"}]
+            for rate_card in rate_cards:
+                name_l = rate_card.get("name", "").lower()
+                if all(tok in name_l for tok in tokens):
+                    rate_card_id = rate_card.get("id")
+                    logger.info(f"✅ Found close match '{rate_card.get('name')}' for '{rate_card_name}': {rate_card_id}")
+                    return rate_card_id
+
+            available = ", ".join(rc.get("name", "<unnamed>") for rc in rate_cards)
+            logger.warning(f"❌ '{rate_card_name}' rate card not found. Available: [{available}]")
             return None
             
         except Exception as e:
@@ -233,15 +247,13 @@ class MetronomeClient:
         
         product_id = await self.get_or_create_prepaid_product()
         
-        # Calculate amounts properly
-        # purchase_amount_dollars = contract_data.get("amount", 0)
-        # purchase_amount_cents = int(purchase_amount_dollars * 100)
-
-        credits_to_purchase = contract_data.get("credits", 0)  # Get credits directly!
+        # Credits to allocate
+        credits_to_purchase = contract_data.get("credits", 0)
         logger.info(f"CREDITS TO PURCHASE IN CLIENT PY FILE. PAYLOAD FOR CREATE CONTRACT {credits_to_purchase}")
-        
-        start_date = "2025-07-01T00:00:00.000Z"  # July 1st, 2025 at midnight UTC
-        end_date = "2026-07-01T00:00:00.000Z"    # July 1st, 2026 at midnight UTC
+
+        # Allow override of contract window; otherwise use demo dates
+        start_date = contract_data.get("start_date") or "2025-07-01T00:00:00.000Z"
+        end_date = contract_data.get("end_date") or "2026-07-01T00:00:00.000Z"
 
         # now = datetime.now()
         # # Round to next hour boundary
@@ -267,7 +279,7 @@ class MetronomeClient:
                     "product_id": product_id,
                     "type": "prepaid",
                     "access_schedule": {
-                        "credit_type_id": "b45eb30b-547f-4e11-91c0-400c0be3370a",
+                        "credit_type_id": settings.VOCALIS_CREDIT_TYPE_ID,
                         "schedule_items": [
                             {
                                 # "amount": purchase_amount_cents,
@@ -312,9 +324,9 @@ class MetronomeClient:
                 },
                 # "threshold_amount": threshold_cents,
                 # "recharge_to_amount": recharge_cents
-                 "threshold_amount": threshold_credits,
+                "threshold_amount": threshold_credits,
                 "recharge_to_amount": recharge_credits,
-                "custom_credit_type_id": "b45eb30b-547f-4e11-91c0-400c0be3370a"
+                "custom_credit_type_id": settings.VOCALIS_CREDIT_TYPE_ID
             }
             
             logger.info(f"Auto-recharge: Threshold ${threshold_credits:.2f} ({threshold_credits} credits), Recharge ${recharge_credits:.2f}")
@@ -432,8 +444,8 @@ class MetronomeClient:
         Returns:
             Dict containing balance info
         """
-        # Add your custom credit type ID (replace with actual ID from Metronome)
-        VOCALIS_CREDIT_TYPE_ID = "b45eb30b-547f-4e11-91c0-400c0be3370a"  
+        # Use configured custom credit type ID for Vocalis credits
+        VOCALIS_CREDIT_TYPE_ID = settings.VOCALIS_CREDIT_TYPE_ID  
 
         logger.info(f"Getting balance for customer {customer_id}")
 
@@ -609,7 +621,11 @@ class MetronomeClient:
         payload = {
             "customer_id": customer_id,
             "event_name": event_data["event_name"],
-            "timestamp": event_data.get("timestamp", datetime.now().isoformat()),
+            # Default to explicit UTC timestamp if not provided
+            "timestamp": event_data.get(
+                "timestamp",
+                datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace('+00:00', 'Z')
+            ),
             "properties": {
                 "credits_consumed": event_data["properties"]["credits_consumed"],
                 "voice_type": event_data["properties"]["voice_type"],

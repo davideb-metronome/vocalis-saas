@@ -1,11 +1,12 @@
 """
 Billing API Routes
-Credit purchases and auto-recharge management
+Credit purchases, auto-recharge, and plan selection
 """
 
-from fastapi import APIRouter, HTTPException, Query, logger
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 from typing import Dict, Any, Optional
+import logging
 async def get_customer_balance(self, customer_id: str) -> Dict[str, Any]:
     """
     ✅ FIXED: Get customer's current credit balance from Metronome
@@ -154,8 +155,12 @@ async def get_customer_balance(self, customer_id: str) -> Dict[str, Any]:
         }
 
 from app.services.metronome import metronome_client
+from app.core.config import settings
 
 router = APIRouter()
+
+# Local logger for this module
+logger = logging.getLogger(__name__)
 
 class AutoRechargeConfig(BaseModel):
     enabled: bool
@@ -268,6 +273,167 @@ async def get_credit_balance(customer_id: str):
     
 # Add this import at the top if not already there
 from datetime import datetime
+
+# ----------------------
+# Plans API (catalog + selection)
+# ----------------------
+
+CREDITS_PER_DOLLAR = 4000
+
+class PlanCatalogItem(BaseModel):
+    id: str
+    name: str
+    price_usd: Optional[int] = None
+    monthly_credits: Optional[int] = None
+    trial_days: Optional[int] = None
+
+class PlanSelectRequest(BaseModel):
+    plan: str  # 'trial' | 'creator' | 'pro' | 'enterprise'
+
+class PlanSelectResponse(BaseModel):
+    success: bool
+    plan: str
+    contract_id: Optional[str] = None
+    message: str
+
+
+@router.get("/plans")
+async def get_plans() -> Dict[str, Any]:
+    """Return available plans and derived monthly credits."""
+    creator_credits = settings.METRONOME_PLAN_CREATOR_DOLLARS * CREDITS_PER_DOLLAR
+    pro_credits = settings.METRONOME_PLAN_PRO_DOLLARS * CREDITS_PER_DOLLAR
+
+    plans = [
+        PlanCatalogItem(
+            id="trial",
+            name="Free Trial",
+            price_usd=0,
+            monthly_credits=settings.METRONOME_TRIAL_CREDITS,
+            trial_days=settings.METRONOME_TRIAL_DAYS,
+        ),
+        PlanCatalogItem(
+            id="creator",
+            name="Creator",
+            price_usd=settings.METRONOME_PLAN_CREATOR_DOLLARS,
+            monthly_credits=creator_credits,
+        ),
+        PlanCatalogItem(
+            id="pro",
+            name="Pro",
+            price_usd=settings.METRONOME_PLAN_PRO_DOLLARS,
+            monthly_credits=pro_credits,
+        ),
+        PlanCatalogItem(id="enterprise", name="Enterprise"),
+    ]
+
+    return {
+        "plans": [p.model_dump() for p in plans],
+        "credits_per_dollar": CREDITS_PER_DOLLAR,
+        "credit_type_id": settings.VOCALIS_CREDIT_TYPE_ID,
+        "rate_card_name": settings.METRONOME_RATE_CARD_NAME,
+    }
+
+
+@router.post("/plan/select")
+async def select_plan(
+    request: PlanSelectRequest,
+    customer_id: str = Query(..., description="Metronome customer ID from session")
+) -> PlanSelectResponse:
+    """
+    Select a billing plan and create the corresponding Metronome contract.
+    - trial: one-time 10k credits (default) valid for N days
+    - creator/pro: initial allocation + threshold auto-recharge to monthly credits
+    - enterprise: placeholder (no contract creation)
+    """
+    plan = request.plan.lower().strip()
+    logger.info(f"Plan selection requested: {plan} for customer {customer_id}")
+
+    try:
+        if plan == "trial":
+            # Trial window: start at current hour boundary, end at boundary N days later (UTC)
+            from datetime import datetime, timedelta, timezone
+
+            def floor_to_hour(dt: datetime) -> datetime:
+                return dt.replace(minute=0, second=0, microsecond=0)
+
+            now = datetime.now(timezone.utc)
+            # Start at previous hour boundary to absorb clock skew/latency
+            start_dt = floor_to_hour(now) - timedelta(hours=1)
+            end_dt = start_dt + timedelta(days=settings.METRONOME_TRIAL_DAYS)
+            start_iso = start_dt.isoformat().replace("+00:00", "Z")
+            end_iso = end_dt.isoformat().replace("+00:00", "Z")
+
+            contract = await metronome_client.create_billing_contract(
+                customer_id,
+                {
+                    "credits": settings.METRONOME_TRIAL_CREDITS,
+                    "start_date": start_iso,
+                    "end_date": end_iso,
+                    "auto_recharge": None,
+                },
+            )
+            return PlanSelectResponse(
+                success=True,
+                plan=plan,
+                contract_id=contract.get("id"),
+                message=f"Trial started: {settings.METRONOME_TRIAL_CREDITS:,} credits for {settings.METRONOME_TRIAL_DAYS} days",
+            )
+
+        elif plan in ("creator", "pro"):
+            dollars = (
+                settings.METRONOME_PLAN_CREATOR_DOLLARS if plan == "creator" else settings.METRONOME_PLAN_PRO_DOLLARS
+            )
+            monthly_credits = dollars * CREDITS_PER_DOLLAR
+
+            # Threshold at ~10% of monthly credits; recharge back to full monthly credits
+            threshold = max(10000, int(0.10 * monthly_credits))
+
+            from datetime import datetime, timedelta, timezone
+
+            def floor_to_hour(dt: datetime) -> datetime:
+                return dt.replace(minute=0, second=0, microsecond=0)
+
+            now = datetime.now(timezone.utc)
+            start_dt = floor_to_hour(now)
+            end_dt = start_dt + timedelta(days=365)
+            start_iso = start_dt.isoformat().replace("+00:00", "Z")
+            end_iso = end_dt.isoformat().replace("+00:00", "Z")
+
+            contract = await metronome_client.create_billing_contract(
+                customer_id,
+                {
+                    "credits": monthly_credits,
+                    "start_date": start_iso,
+                    "end_date": end_iso,
+                    "auto_recharge": {
+                        "enabled": True,
+                        "threshold": threshold,
+                        "amount": monthly_credits,
+                        "price": float(dollars),
+                    },
+                },
+            )
+            return PlanSelectResponse(
+                success=True,
+                plan=plan,
+                contract_id=contract.get("id"),
+                message=f"{plan.title()} plan activated: {monthly_credits:,} credits/month",
+            )
+
+        elif plan == "enterprise":
+            return PlanSelectResponse(
+                success=True,
+                plan=plan,
+                message="Enterprise plan: our team will reach out to tailor your contract.",
+            )
+
+        else:
+            raise HTTPException(status_code=400, detail=f"Unknown plan: {plan}")
+
+    except Exception as e:
+        logger.error(f"Plan selection failed for {customer_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Plan selection failed: {str(e)}")
+
 
 
 # Update this in backend/app/api/billing.py

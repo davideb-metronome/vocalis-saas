@@ -98,6 +98,68 @@ body {
     margin-bottom: 30px;
 }
 
+/* Tabs */
+.billing-tabs {
+    display: inline-flex;
+    gap: 6px;
+    background: var(--gray-100);
+    border: 1px solid var(--gray-200);
+    border-radius: 999px;
+    padding: 4px;
+    margin-top: 14px;
+}
+
+.billing-tab {
+    appearance: none;
+    -webkit-appearance: none;
+    border: none;
+    background: transparent;
+    padding: 8px 14px;
+    border-radius: 999px;
+    color: var(--gray-700);
+    font-weight: 600;
+    cursor: pointer;
+    line-height: 1;
+}
+
+.billing-tab.active {
+    background: white;
+    color: var(--primary-blue);
+    box-shadow: var(--shadow-sm);
+}
+
+.tab-section.hidden { display: none; }
+
+/* Plans */
+.plans-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+    margin-top: 20px;
+}
+
+.plan-card {
+    border: 2px solid var(--gray-200);
+    border-radius: var(--radius-xl);
+    padding: 18px 16px;
+    background: #fff;
+    text-align: center;
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.plan-card:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); }
+
+.plan-name { font-weight: 700; color: var(--gray-800); margin-bottom: 2px; font-size: 18px; }
+.plan-price { color: var(--gray-800); margin-bottom: 4px; font-weight: 700; }
+.plan-credits { color: var(--gray-500); font-size: 13px; margin-bottom: 12px; }
+.plans-note { color: var(--gray-500); font-size: 12px; margin-top: 10px; text-align: center; }
+
+/* Buttons inside plan cards: slightly tighter than global .btn-large */
+.plan-card .btn-large {
+    padding: 12px;
+    margin-bottom: 0;
+}
+
 .close-btn {
     position: absolute;
     top: 20px;
