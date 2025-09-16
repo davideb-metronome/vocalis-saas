@@ -31,11 +31,11 @@ async def signup(request: SignupRequest) -> SignupResponse:
     """
     try:
         # Prepare customer data for Metronome
+        # Store email in our external_id/ingest_alias for later resolution in webhooks
         customer_data = {
             "name": request.full_name,
             "email": request.email,
             "external_id": f"vocalis_{request.email}",
-            # Additional metadata can be added here
         }
         
         # Create customer in Metronome - WILL FAIL until implemented

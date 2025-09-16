@@ -23,6 +23,17 @@ class Settings(BaseSettings):
     METRONOME_PLAN_PRO_DOLLARS: int = 199
     METRONOME_TRIAL_CREDITS: int = 50000
     METRONOME_TRIAL_DAYS: int = 14
+
+    # Email (MailHog by default for demo)
+    EMAIL_PROVIDER: str = "smtp"  # "smtp" | "resend"
+    SMTP_HOST: str = "localhost"
+    SMTP_PORT: int = 1025
+    EMAIL_FROM: str = "hello@vocalis.ai"
+    DEMO_EMAIL_TO: str | None = None
+    RESEND_API_KEY: Optional[str] = None
+    DASHBOARD_URL: str = "http://localhost:8000/dashboard"
+    DOCS_URL: str = "https://docs.vocalis.ai"
+    SEND_WELCOME_ON_PLAN_SELECT: bool = False
     
     # Voice Generation (placeholder for future AI service)
     VOICE_API_KEY: Optional[str] = None

@@ -15,8 +15,12 @@ from datetime import datetime
 
 # Add this import for the Metronome client
 from app.services.metronome import metronome_client
+from app.utils.email import send_welcome_email
+from app.core.config import settings
 
 active_connections: Dict[str, Set[asyncio.Queue]] = {}
+# In-memory idempotency store for webhook IDs we've already processed
+processed_webhook_ids: Set[str] = set()
 
 router = APIRouter()
 
@@ -153,7 +157,81 @@ async def handle_metronome_alerts(request: Request):
             
         elif alert_type == 'alerts.spend_threshold_reached':
             print(f"💰 SPEND THRESHOLD REACHED")
-            
+        
+        elif alert_type == 'contract.start':
+            # Onboarding email on contract start (offset notification or system event)
+            webhook_id = webhook_data.get('id')
+            if webhook_id and webhook_id in processed_webhook_ids:
+                print(f"ℹ️  Duplicate contract.start webhook {webhook_id} ignored")
+            else:
+                if webhook_id:
+                    processed_webhook_ids.add(webhook_id)
+
+                customer_id = webhook_data.get('customer_id')
+                contract_id = webhook_data.get('contract_id')
+                cust_fields = webhook_data.get('customer_custom_fields') or {}
+                email_to = cust_fields.get('email') or settings.DEMO_EMAIL_TO
+                first_name = cust_fields.get('first_name') or ''
+
+                if not email_to:
+                    # Try fetching customer to resolve email
+                    try:
+                        customer = await metronome_client.get_customer(customer_id)
+                        # Try to derive email from ingest_aliases/external_id pattern vocalis_<email>
+                        ingest_aliases = customer.get('ingest_aliases') or []
+                        derived = None
+                        for alias in ingest_aliases:
+                            if isinstance(alias, str) and alias.startswith('vocalis_') and '@' in alias:
+                                derived = alias.replace('vocalis_', '', 1)
+                                break
+                        # Some APIs may return external_id separately
+                        if not derived:
+                            ext = customer.get('external_id')
+                            if isinstance(ext, str) and ext.startswith('vocalis_') and '@' in ext:
+                                derived = ext.replace('vocalis_', '', 1)
+                        email_to = derived or settings.DEMO_EMAIL_TO
+                    except Exception as resolve_err:
+                        print(f"⚠️ Could not resolve customer email: {resolve_err}")
+
+                if email_to:
+                    print(f"📧 Sending welcome email to customer {customer_id} → {email_to}")
+                    try:
+                        # Try to compute trial end date from balances for this contract
+                        trial_end_str = None
+                        try:
+                            balances = await metronome_client.list_customer_balances(customer_id)
+                            items = balances.get('data', [])
+                            target_end = None
+                            for entry in items:
+                                if contract_id and entry.get('contract', {}).get('id') != contract_id:
+                                    continue
+                                sched = (entry.get('access_schedule') or {}).get('schedule_items') or []
+                                if sched:
+                                    target_end = sched[0].get('ending_before') or target_end
+                                if contract_id and target_end:
+                                    break
+                            if target_end:
+                                iso = target_end.replace('Z', '+00:00') if 'Z' in target_end else target_end
+                                dt = datetime.fromisoformat(iso)
+                                trial_end_str = dt.strftime('%b %d, %Y %H:%M UTC')
+                        except Exception as e:
+                            print(f"⚠️ Could not compute trial end date: {e}")
+
+                        # Fire and forget; do not block webhook response
+                        asyncio.create_task(
+                            send_welcome_email(
+                                to=email_to,
+                                first_name=first_name,
+                                credits=settings.METRONOME_TRIAL_CREDITS,
+                                trial_days=settings.METRONOME_TRIAL_DAYS,
+                                trial_end_date=trial_end_str,
+                            )
+                        )
+                    except Exception as e:
+                        print(f"❌ Failed to enqueue welcome email: {e}")
+                else:
+                    print(f"⚠️ No email available for customer {customer_id}; skipping welcome email")
+        
         else:
             print(f"ℹ️  UNKNOWN ALERT TYPE: {alert_type}")
         

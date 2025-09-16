@@ -110,11 +110,10 @@ class MetronomeClient:
 
         logger.info(f"Creating Metronome customer: {customer_data.get('name')}")
 
-        # Simple payload - email is embedded in external_id
+        # Payload with ingest alias (external_id encodes email: vocalis_<email>)
         payload = {
             "name": customer_data["name"],
-            "ingest_aliases": [customer_data["external_id"]]
-            # No custom_fields needed - email is in the external_id
+            "ingest_aliases": [customer_data["external_id"]],
         }
 
         try:
@@ -132,7 +131,7 @@ class MetronomeClient:
                 "external_id": customer_data["external_id"],
                 "name": customer_data["name"],
                 "email": customer_data["email"],  # Keep email in response for frontend
-                "ingest_aliases": payload["ingest_aliases"]
+                "ingest_aliases": payload["ingest_aliases"],
             }
             
         except Exception as e:
@@ -685,6 +684,29 @@ class MetronomeClient:
         except Exception as e:
             logger.error(f"❌ Failed to set customer aliases: {e}")
             raise Exception(f"Failed to set customer aliases: {e}")
+
+    async def get_customer(self, customer_id: str) -> Dict[str, Any]:
+        """Fetch a single customer and return its data"""
+        try:
+            response_data = await self._make_request(
+                "GET",
+                f"/v1/customers/{customer_id}",
+                None,
+            )
+            return response_data.get("data", response_data)
+        except Exception as e:
+            logger.error(f"❌ Failed to get customer {customer_id}: {e}")
+            raise
+
+    async def list_customer_balances(self, customer_id: str) -> Dict[str, Any]:
+        """Raw list of customer balances from Metronome (for end date extraction)"""
+        payload = {
+            "customer_id": customer_id,
+            "include_balance": True,
+            "include_contract_balances": True,
+            "include_ledgers": False,
+        }
+        return await self._make_request("POST", "/v1/contracts/customerBalances/list", payload)
 
  
 
