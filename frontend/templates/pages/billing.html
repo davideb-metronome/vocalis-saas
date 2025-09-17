@@ -6,9 +6,9 @@
     <title>Purchase Credits - Vocalis</title>
     
     <!-- CSS -->
-    <link rel="stylesheet" href="/static/css/main.css?v=2">
-    <link rel="stylesheet" href="/static/css/components.css?v=2">
-    <link rel="stylesheet" href="/static/css/pages/billing.css?v=2">
+    <link rel="stylesheet" href="/static/css/main.css?v=3">
+    <link rel="stylesheet" href="/static/css/components.css?v=3">
+    <link rel="stylesheet" href="/static/css/pages/billing.css?v=3">
 </head>
 <body>
     <div class="container">
@@ -55,33 +55,43 @@
                 <!-- Plan Section -->
                 <section id="plans-section" class="tab-section">
                     <div id="plan-status" class="plan-status hidden"></div>
-                    <div class="plans-grid">
+
+                    <div class="plans-grid redesigned">
+                        <!-- Free Trial -->
                         <div class="plan-card" data-plan="trial">
                             <div class="plan-name">Free Trial</div>
                             <div class="plan-price">$0</div>
-                            <div class="plan-credits" id="trial-credits">50,000 credits for 14 days</div>
-                            <button class="btn-large plan-select-btn" data-plan="trial">Start Free Trial</button>
+                            <div class="plan-credits">50,000 credits<br/>for 14 days</div>
+                            <button class="plan-button primary plan-select-btn" data-plan="trial">Start Free Trial</button>
                         </div>
-                        <div class="plan-card" data-plan="creator">
+
+                        <!-- Creator (Most Popular) -->
+                        <div class="plan-card popular" data-plan="creator">
+                            <div class="popular-badge">MOST POPULAR</div>
                             <div class="plan-name">Creator</div>
-                            <div class="plan-price" id="creator-price">$49 / month</div>
-                            <div class="plan-credits" id="creator-credits">196,000 credits / month</div>
-                            <button class="btn-large plan-select-btn" data-plan="creator">Choose Creator</button>
+                            <div class="plan-price">$49<span>/month</span></div>
+                            <div class="plan-credits">250,000 credits<br/>per month</div>
+                            <button class="plan-button primary plan-select-btn" data-plan="creator">Choose Creator</button>
                         </div>
+
+                        <!-- Pro -->
                         <div class="plan-card" data-plan="pro">
                             <div class="plan-name">Pro</div>
-                            <div class="plan-price" id="pro-price">$199 / month</div>
-                            <div class="plan-credits" id="pro-credits">796,000 credits / month</div>
-                            <button class="btn-large plan-select-btn" data-plan="pro">Choose Pro</button>
-                        </div>
-                        <div class="plan-card" data-plan="enterprise">
-                            <div class="plan-name">Enterprise</div>
-                            <div class="plan-price">Custom</div>
-                            <div class="plan-credits">Tailored credits & support</div>
-                            <button class="btn-large plan-select-btn" data-plan="enterprise">Contact Sales</button>
+                            <div class="plan-price">$149<span>/month</span></div>
+                            <div class="plan-credits">1,000,000 credits<br/>per month</div>
+                            <button class="plan-button secondary plan-select-btn" data-plan="pro">Choose Pro</button>
+                            <div class="savings-tag">Save 24% per credit</div>
                         </div>
                     </div>
-                    <div class="plans-note">All plans allocate credits in Vocalis credits (VC). You can also purchase add‑on credits anytime.</div>
+
+                    <div class="pricing-details">
+                        <div class="pricing-info">
+                            <div class="pricing-item"><span class="pricing-icon">🎙️</span><span>Standard: 1 credit/character</span></div>
+                            <div class="pricing-item"><span class="pricing-icon">⭐</span><span>Premium: 2 credits/character</span></div>
+                            <div class="pricing-item"><span class="pricing-icon">👤</span><span>Clone: 25,000 credits setup</span></div>
+                        </div>
+                        <p class="pricing-note">All plans use Vocalis Credits (VC). You can purchase additional credits anytime. Credits never expire.</p>
+                    </div>
                 </section>
             </div>
             

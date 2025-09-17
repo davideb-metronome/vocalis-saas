@@ -8,8 +8,12 @@ from pydantic import BaseModel, EmailStr
 from typing import Dict, Any
 
 from app.services.metronome import metronome_client
+from app.utils import user_store
 
 router = APIRouter()
+
+# Ensure local user store exists
+user_store.init_db()
 
 class SignupRequest(BaseModel):
     first_name: str
@@ -45,6 +49,18 @@ async def signup(request: SignupRequest) -> SignupResponse:
         customer_id = metronome_customer.get("id")
         if not customer_id:
             raise HTTPException(status_code=500, detail="Failed to create customer in Metronome")
+        
+        # Persist user profile locally for webhook personalization
+        try:
+            user_store.upsert_user(
+                customer_id=customer_id,
+                email=request.email,
+                first_name=request.first_name,
+                full_name=request.full_name,
+            )
+        except Exception:
+            # Do not block signup on local store errors
+            pass
         
         return SignupResponse(
             success=True,

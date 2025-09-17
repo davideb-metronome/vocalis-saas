@@ -15,7 +15,8 @@ from datetime import datetime
 
 # Add this import for the Metronome client
 from app.services.metronome import metronome_client
-from app.utils.email import send_welcome_email
+from app.utils.email import send_welcome_email, send_conversion_email
+from app.utils import user_store
 from app.core.config import settings
 
 active_connections: Dict[str, Set[asyncio.Queue]] = {}
@@ -56,6 +57,7 @@ async def handle_metronome_alerts(request: Request):
         # Handle specific alert types
         alert_type = webhook_data.get('type')
         properties = webhook_data.get('properties', {})
+        offset_duration = webhook_data.get('offset_duration')
         
         if alert_type == 'alerts.low_remaining_credit_balance_reached':
             customer_id = properties.get('customer_id')
@@ -196,8 +198,9 @@ async def handle_metronome_alerts(request: Request):
                 if email_to:
                     print(f"📧 Sending welcome email to customer {customer_id} → {email_to}")
                     try:
-                        # Try to compute trial end date from balances for this contract
+                        # Compute actual credits granted and trial end
                         trial_end_str = None
+                        credits_granted = settings.METRONOME_TRIAL_CREDITS
                         try:
                             balances = await metronome_client.list_customer_balances(customer_id)
                             items = balances.get('data', [])
@@ -207,6 +210,7 @@ async def handle_metronome_alerts(request: Request):
                                     continue
                                 sched = (entry.get('access_schedule') or {}).get('schedule_items') or []
                                 if sched:
+                                    credits_granted = sched[0].get('amount', credits_granted)
                                     target_end = sched[0].get('ending_before') or target_end
                                 if contract_id and target_end:
                                     break
@@ -215,14 +219,31 @@ async def handle_metronome_alerts(request: Request):
                                 dt = datetime.fromisoformat(iso)
                                 trial_end_str = dt.strftime('%b %d, %Y %H:%M UTC')
                         except Exception as e:
-                            print(f"⚠️ Could not compute trial end date: {e}")
+                            print(f"⚠️ Could not compute trial info: {e}")
 
-                        # Fire and forget; do not block webhook response
+                        # Prefer stored user profile (first_name) from local DB
+                        if not first_name:
+                            try:
+                                prof = user_store.get_user_by_customer_id(customer_id)
+                                if prof and prof.get('first_name'):
+                                    first_name = prof['first_name']
+                            except Exception:
+                                pass
+                        # Fallback: derive from email local-part if still blank
+                        if not first_name and '@' in email_to:
+                            local = email_to.split('@', 1)[0]
+                            tokens = [p for p in (
+                                local.replace('+', ' ').replace('.', ' ').replace('_', ' ').replace('-', ' ')
+                            ).split() if p]
+                            blacklist = {"i", "iam", "hello", "hi", "info", "contact", "admin", "support"}
+                            tokens = [t for t in tokens if t.lower() not in blacklist]
+                            first_name = tokens[0].title() if tokens else 'there'
+
                         asyncio.create_task(
                             send_welcome_email(
                                 to=email_to,
                                 first_name=first_name,
-                                credits=settings.METRONOME_TRIAL_CREDITS,
+                                credits=int(credits_granted or 0),
                                 trial_days=settings.METRONOME_TRIAL_DAYS,
                                 trial_end_date=trial_end_str,
                             )
@@ -231,7 +252,89 @@ async def handle_metronome_alerts(request: Request):
                         print(f"❌ Failed to enqueue welcome email: {e}")
                 else:
                     print(f"⚠️ No email available for customer {customer_id}; skipping welcome email")
-        
+
+            # Additionally: if this is the demo conversion offset (start + PT3M), broadcast conversion push
+            if offset_duration == 'PT3M':
+                try:
+                    # Compute end for banner context
+                    end_str = None
+                    try:
+                        balances = await metronome_client.list_customer_balances(customer_id)
+                        items = balances.get('data', [])
+                        target_end = None
+                        for entry in items:
+                            sched = (entry.get('access_schedule') or {}).get('schedule_items') or []
+                            if sched:
+                                target_end = sched[0].get('ending_before') or target_end
+                                break
+                        if target_end:
+                            iso = target_end.replace('Z', '+00:00') if 'Z' in target_end else target_end
+                            dt = datetime.fromisoformat(iso)
+                            end_str = dt.strftime('%b %d, %Y %H:%M UTC')
+                    except Exception as e:
+                        print(f"⚠️ Could not compute end_at for conversion push: {e}")
+
+                    await broadcast_event(customer_id, {
+                        "type": "trial_conversion_push",
+                        "days_left": 3,
+                        "end_at_utc": end_str,
+                        "promo": "TRIAL20",
+                        "timestamp": datetime.now().isoformat()
+                    })
+                    print("📣 Conversion push SSE broadcasted")
+
+                    # Send conversion email as well
+                    try:
+                        target_email = email_to  # derived earlier
+                        if target_email:
+                            asyncio.create_task(
+                                send_conversion_email(
+                                    to=target_email,
+                                    first_name=first_name,
+                                    days_left=3,
+                                    trial_end_date=end_str,
+                                )
+                            )
+                    except Exception as ee:
+                        print(f"⚠️ Failed to enqueue conversion email: {ee}")
+                except Exception as be:
+                    print(f"⚠️ Failed to broadcast conversion push: {be}")
+
+        elif alert_type == 'commit.segment.end' and offset_duration in ('-P3D', '-PT72H'):
+            # Production-style conversion push: 3 days before trial end
+            customer_id = webhook_data.get('customer_id')
+            contract_id = webhook_data.get('contract_id')
+            # Try compute end string
+            end_str = None
+            try:
+                balances = await metronome_client.list_customer_balances(customer_id)
+                items = balances.get('data', [])
+                target_end = None
+                for entry in items:
+                    if contract_id and entry.get('contract', {}).get('id') != contract_id:
+                        continue
+                    sched = (entry.get('access_schedule') or {}).get('schedule_items') or []
+                    if sched:
+                        target_end = sched[0].get('ending_before') or target_end
+                        if contract_id and target_end:
+                            break
+                if target_end:
+                    iso = target_end.replace('Z', '+00:00') if 'Z' in target_end else target_end
+                    dt = datetime.fromisoformat(iso)
+                    end_str = dt.strftime('%b %d, %Y %H:%M UTC')
+            except Exception as e:
+                print(f"⚠️ Could not compute end_at for prod conversion push: {e}")
+
+            await broadcast_event(customer_id, {
+                "type": "trial_conversion_push",
+                "days_left": 3,
+                "end_at_utc": end_str,
+                "promo": "TRIAL20",
+                "timestamp": datetime.now().isoformat()
+            })
+            # We could also send the conversion email here by reusing customer email derivation if needed
+            print("📣 Prod conversion push SSE broadcasted")
+
         else:
             print(f"ℹ️  UNKNOWN ALERT TYPE: {alert_type}")
         

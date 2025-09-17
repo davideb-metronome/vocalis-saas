@@ -300,8 +300,9 @@ class PlanSelectResponse(BaseModel):
 @router.get("/plans")
 async def get_plans() -> Dict[str, Any]:
     """Return available plans and derived monthly credits."""
-    creator_credits = settings.METRONOME_PLAN_CREATOR_DOLLARS * CREDITS_PER_DOLLAR
-    pro_credits = settings.METRONOME_PLAN_PRO_DOLLARS * CREDITS_PER_DOLLAR
+    # Fixed round numbers for the demo UI
+    creator_credits = 250_000
+    pro_credits = 1_000_000
 
     plans = [
         PlanCatalogItem(
@@ -380,13 +381,8 @@ async def select_plan(
             )
 
         elif plan in ("creator", "pro"):
-            dollars = (
-                settings.METRONOME_PLAN_CREATOR_DOLLARS if plan == "creator" else settings.METRONOME_PLAN_PRO_DOLLARS
-            )
-            monthly_credits = dollars * CREDITS_PER_DOLLAR
-
-            # Threshold at ~10% of monthly credits; recharge back to full monthly credits
-            threshold = max(10000, int(0.10 * monthly_credits))
+            # Grant fixed plan credits immediately (no thresholds/recurrence for demo)
+            monthly_credits = 250_000 if plan == "creator" else 1_000_000
 
             from datetime import datetime, timedelta, timezone
 
@@ -405,12 +401,7 @@ async def select_plan(
                     "credits": monthly_credits,
                     "start_date": start_iso,
                     "end_date": end_iso,
-                    "auto_recharge": {
-                        "enabled": True,
-                        "threshold": threshold,
-                        "amount": monthly_credits,
-                        "price": float(dollars),
-                    },
+                    "auto_recharge": None,
                 },
             )
             return PlanSelectResponse(
@@ -476,3 +467,34 @@ async def get_credit_balance(customer_id: str):
             status_code=500,
             detail=f"Failed to retrieve balance from Metronome: {str(e)}"
         )
+# Trial status endpoint: compute days_left from balances
+@router.get("/trial-status")
+async def trial_status(customer_id: str = Query(...)) -> Dict[str, Any]:
+    try:
+        from datetime import datetime, timezone
+        balances = await metronome_client.list_customer_balances(customer_id)  # type: ignore
+        items = balances.get('data', [])
+        end_iso = None
+        for entry in items:
+            # Use the first PREPAID entry in Vocalis credits
+            if entry.get('type') == 'PREPAID':
+                sched = (entry.get('access_schedule') or {}).get('schedule_items') or []
+                if sched:
+                    end_iso = sched[0].get('ending_before')
+                    break
+        if not end_iso:
+            return {"is_trial": False}
+        # Parse and compute days left (ceil)
+        iso = end_iso.replace('Z', '+00:00') if 'Z' in end_iso else end_iso
+        end_dt = datetime.fromisoformat(iso)
+        now = datetime.now(timezone.utc)
+        seconds_left = max(0, (end_dt - now).total_seconds())
+        days_left = int((seconds_left + 86399) // 86400)  # ceil
+        return {
+            "is_trial": True,
+            "end_at_utc": end_dt.strftime('%b %d, %Y %H:%M UTC'),
+            "days_left": days_left,
+        }
+    except Exception as e:
+        logger.error(f"trial-status failed: {e}")
+        return {"is_trial": False}

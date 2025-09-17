@@ -7,9 +7,11 @@ class DashboardPage {
     constructor() {
         this.voiceGenerator = new VoiceGenerator();
         this.creditDisplay = new CreditDisplayManager();
+        this.trialBanner = new TrialBanner();
         
         // Make credit display manager globally available
         window.creditDisplayManager = this.creditDisplay;
+        window.trialBanner = this.trialBanner;
 
         this.init();
     }
@@ -31,6 +33,9 @@ class DashboardPage {
         }, 50000);
 
         console.log('✅ Dashboard page initialized');
+
+        // Check banner on load (fallback)
+        this.trialBanner.checkOnLoad();
     }
 
     updateUserInfo() {
