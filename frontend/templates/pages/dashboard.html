@@ -6,9 +6,9 @@
     <title>Vocalis Dashboard - Credits</title>
     
     <!-- CSS -->
-    <link rel="stylesheet" href="/static/css/main.css">
-    <link rel="stylesheet" href="/static/css/components.css">
-    <link rel="stylesheet" href="/static/css/pages/dashboard.css">
+    <link rel="stylesheet" href="/static/css/main.css?v=red1">
+    <link rel="stylesheet" href="/static/css/components.css?v=red1">
+    <link rel="stylesheet" href="/static/css/pages/dashboard.css?v=red1">
 </head>
 <body>
     <!-- Header -->
@@ -27,6 +27,10 @@
 
     <div class="container">
         <!-- Welcome Banner -->
+        <div id="trial-banner" class="trial-banner hidden">
+            <div class="trial-text"><span id="trial-days">3</span> days left in your trial. <span id="trial-end"></span></div>
+            <a id="trial-cta" href="/billing?promo=TRIAL20" class="btn-success btn-inline">See Plans (20% off)</a>
+        </div>
         <div class="welcome-banner">
             <h1>Welcome to Vocalis, <span id="user-name">Alex</span>! 🎉</h1>
             <p>Your credits are ready to use. Create unlimited voices with your prepaid credits!</p>
@@ -116,11 +120,12 @@
     <div id="notification-container"></div>
 
     <!-- JavaScript -->
-    <script src="/static/js/core/api-client.js"></script>
-    <script src="/static/js/core/notifications.js"></script>
-    <script src="/static/js/components/form-validation.js"></script>
-    <script src="/static/js/components/voice-generate.js"></script>
-    <script src="/static/js/components/credit-display.js"></script>
-    <script src="/static/js/pages/dashboard.js"></script>
+    <script src="/static/js/core/api-client.js?v=nopush1"></script>
+    <script src="/static/js/core/notifications.js?v=nopush1"></script>
+    <script src="/static/js/components/form-validation.js?v=nopush1"></script>
+    <script src="/static/js/components/voice-generate.js?v=nopush1"></script>
+    <script src="/static/js/components/credit-display.js?v=nopush1"></script>
+    <script src="/static/js/components/trial-banner.js?v=nopush1"></script>
+    <script src="/static/js/pages/dashboard.js?v=nopush1"></script>
 </body>
 </html>

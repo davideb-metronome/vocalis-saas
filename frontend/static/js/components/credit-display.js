@@ -380,6 +380,16 @@ class CreditDisplayManager {
             case 'ping':
                 console.log('🏓 Keep-alive ping received');
                 break;
+            
+            case 'trial_conversion_push':
+                console.log('🔔 Trial conversion push event received', data);
+                if (window.trialBanner && typeof window.trialBanner.showPush === 'function') {
+                    window.trialBanner.showPush(data);
+                } else {
+                    // Suppress toast in demo; render only inline banner when available
+                    // notifications.info('Your trial ends in 3 days — upgrade now for 20% off!');
+                }
+                break;
                 
             default:
                 console.log('📡 Unknown event type:', data.type);

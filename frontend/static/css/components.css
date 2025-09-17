@@ -56,6 +56,17 @@
     box-shadow: var(--shadow-lg);
 }
 
+/* Success (green) button, reused for CTAs like "See Plans" */
+.btn-success {
+    background: linear-gradient(135deg, var(--success-green), var(--success-green-dark));
+    color: white;
+}
+
+.btn-success:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+}
+
 .btn-secondary {
     background: white;
     color: var(--gray-700);

@@ -72,6 +72,30 @@ body {
     margin-bottom: 0;
 }
 
+/* Trial Conversion Banner */
+.trial-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    /* Shift from subtle orange to clear, urgent red */
+    background: #fee2e2; /* light red */
+    border: 1px solid var(--error-red);
+    color: #7f1d1d; /* dark red text for readability */
+    padding: 14px 16px;
+    border-radius: var(--radius-xl);
+    margin-bottom: 16px;
+}
+.trial-banner.hidden { display: none; }
+.trial-banner .trial-text { font-weight: 600; }
+.btn-inline {
+    display: inline-flex;
+    align-items: center;
+    padding: 8px 12px;
+    border-radius: 8px;
+    text-decoration: none;
+}
+
 /* Main Content Layout */
 .main-content {
     display: grid;
