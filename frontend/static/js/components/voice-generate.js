@@ -142,6 +142,18 @@ class VoiceGenerator {
                 const dollarCost = actualCreditsUsed * this.CREDIT_RATE;
 
                 this.hasCustomClone = true;
+                // Update the clone tile to a ready state so it doesn't remain in
+                // the temporary "Creating Clone..." UI after success.
+                // Keep the label concise and show post-setup pricing.
+                if (cloneOption) {
+                    const readyName = cloneOption.querySelector('.voice-name');
+                    const readyDesc = cloneOption.querySelector('.voice-description');
+                    const readyCost = cloneOption.querySelector('.credit-cost');
+                    if (readyName) readyName.textContent = 'Clone Ready';
+                    if (readyDesc) readyDesc.textContent = 'Use your custom voice';
+                    if (readyCost) readyCost.textContent = '1 credit/character';
+                }
+                // Also update any detached cost display element
                 this.updateCloneDisplay();
 
                 notifications.success(

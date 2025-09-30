@@ -23,7 +23,7 @@ services:
       - key: METRONOME_API_KEY
         sync: false  # Will set manually in dashboard
       - key: METRONOME_API_URL
-        value: https://api.metronome.com/v1
+        value: https://api.metronome.com
       - key: SECRET_KEY
         generateValue: true  # Render will generate a secure key
       - key: PYTHONPATH

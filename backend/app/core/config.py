@@ -13,8 +13,9 @@ class Settings(BaseSettings):
     
     # Metronome Integration
     METRONOME_API_KEY: Optional[str] = None
-    METRONOME_API_URL: str = "https://api.metronome.com/v1"
-    METRONOME_RATE_CARD_NAME: str = "Vocalis rate card 2025"
+    METRONOME_API_URL: str = "https://api.metronome.com"
+    # Set in root .env; no in-code default to avoid ambiguity
+    METRONOME_RATE_CARD_NAME: Optional[str] = None
     # Custom pricing unit for Vocalis credits (override in .env if different)
     VOCALIS_CREDIT_TYPE_ID: str = "21984655-5f0c-4161-973e-bdc5d2ecd530"
 
@@ -45,7 +46,11 @@ class Settings(BaseSettings):
     # Security
     SECRET_KEY: str = "dev-secret-key-change-in-production"
     
+    # Webhooks
+    METRONOME_WEBHOOK_SECRET: Optional[str] = None
+    
     class Config:
-        env_file = ".env"
+        # Load env from the project root (../.env) when running with CWD=backend
+        env_file = "../.env"
 
 settings = Settings()

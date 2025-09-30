@@ -38,11 +38,29 @@ async def handle_metronome_alerts(request: Request):
     - payment_gate.external_initiate ← KEY: Auto-recharge payment request
     """
     try:
-        # Get headers for verification
-        headers = dict(request.headers)
-        
-        # Get webhook data
-        webhook_data = await request.json()
+        # Normalize headers (lower-cased) for consistent access
+        headers = {k.lower(): v for k, v in dict(request.headers).items()}
+
+        # Verify webhook signature if configured
+        raw_body = await request.body()
+        webhook_data = None
+        secret = getattr(settings, "METRONOME_WEBHOOK_SECRET", None)
+        if secret:
+            signature = (
+                headers.get("x-metronome-signature")
+                or headers.get("metronome-signature")
+                or headers.get("signature")
+            )
+            date_header = headers.get("date", "")
+            if not signature or not verify_webhook_signature(signature, date_header, raw_body, secret):
+                raise HTTPException(status_code=401, detail="Invalid webhook signature")
+            try:
+                webhook_data = json.loads(raw_body.decode("utf-8") or "{}")
+            except Exception:
+                webhook_data = {}
+        else:
+            # Fallback: proceed without signature enforcement when secret not set
+            webhook_data = await request.json()
         
         # 🔍 COMPREHENSIVE WEBHOOK LOGGING
         print("=" * 70)
@@ -51,7 +69,9 @@ async def handle_metronome_alerts(request: Request):
         print(f"   Type: {webhook_data.get('type')}")
         print(f"   Timestamp: {headers.get('date')}")
         print(f"   Properties: {json.dumps(webhook_data.get('properties', {}), indent=2)}")
-        print(f"   Full Headers: {headers}")
+        # Avoid dumping all headers (may include sensitive info)
+        safe_headers = {k: headers.get(k) for k in ["date", "user-agent", "content-type"] if headers.get(k)}
+        print(f"   Header summary: {safe_headers}")
         print("=" * 70)
         
         # Handle specific alert types
@@ -204,20 +224,26 @@ async def handle_metronome_alerts(request: Request):
                         try:
                             balances = await metronome_client.list_customer_balances(customer_id)
                             items = balances.get('data', [])
-                            target_end = None
+                            target_end_dt = None
                             for entry in items:
-                                if contract_id and entry.get('contract', {}).get('id') != contract_id:
-                                    continue
-                                sched = (entry.get('access_schedule') or {}).get('schedule_items') or []
-                                if sched:
-                                    credits_granted = sched[0].get('amount', credits_granted)
-                                    target_end = sched[0].get('ending_before') or target_end
-                                if contract_id and target_end:
+                                if contract_id:
+                                    contract = getattr(entry, 'contract', None)
+                                    if contract is not None and getattr(contract, 'id', None) != contract_id:
+                                        continue
+                                sched = getattr(entry, 'access_schedule', None)
+                                sitems = getattr(sched, 'schedule_items', []) if sched is not None else []
+                                if sitems:
+                                    amount = getattr(sitems[0], 'amount', None)
+                                    if amount is not None:
+                                        credits_granted = int(amount)
+                                    target_end_dt = getattr(sitems[0], 'ending_before', None) or target_end_dt
+                                if contract_id and target_end_dt:
                                     break
-                            if target_end:
-                                iso = target_end.replace('Z', '+00:00') if 'Z' in target_end else target_end
-                                dt = datetime.fromisoformat(iso)
-                                trial_end_str = dt.strftime('%b %d, %Y %H:%M UTC')
+                            if target_end_dt:
+                                if getattr(target_end_dt, 'tzinfo', None) is None:
+                                    from datetime import timezone as _tz
+                                    target_end_dt = target_end_dt.replace(tzinfo=_tz.utc)
+                                trial_end_str = target_end_dt.strftime('%b %d, %Y %H:%M UTC')
                         except Exception as e:
                             print(f"⚠️ Could not compute trial info: {e}")
 
@@ -261,16 +287,18 @@ async def handle_metronome_alerts(request: Request):
                     try:
                         balances = await metronome_client.list_customer_balances(customer_id)
                         items = balances.get('data', [])
-                        target_end = None
+                        target_end_dt = None
                         for entry in items:
-                            sched = (entry.get('access_schedule') or {}).get('schedule_items') or []
-                            if sched:
-                                target_end = sched[0].get('ending_before') or target_end
+                            sched = getattr(entry, 'access_schedule', None)
+                            sitems = getattr(sched, 'schedule_items', []) if sched is not None else []
+                            if sitems:
+                                target_end_dt = getattr(sitems[0], 'ending_before', None) or target_end_dt
                                 break
-                        if target_end:
-                            iso = target_end.replace('Z', '+00:00') if 'Z' in target_end else target_end
-                            dt = datetime.fromisoformat(iso)
-                            end_str = dt.strftime('%b %d, %Y %H:%M UTC')
+                        if target_end_dt:
+                            if getattr(target_end_dt, 'tzinfo', None) is None:
+                                from datetime import timezone as _tz
+                                target_end_dt = target_end_dt.replace(tzinfo=_tz.utc)
+                            end_str = target_end_dt.strftime('%b %d, %Y %H:%M UTC')
                     except Exception as e:
                         print(f"⚠️ Could not compute end_at for conversion push: {e}")
 
@@ -309,19 +337,23 @@ async def handle_metronome_alerts(request: Request):
             try:
                 balances = await metronome_client.list_customer_balances(customer_id)
                 items = balances.get('data', [])
-                target_end = None
+                target_end_dt = None
                 for entry in items:
-                    if contract_id and entry.get('contract', {}).get('id') != contract_id:
-                        continue
-                    sched = (entry.get('access_schedule') or {}).get('schedule_items') or []
-                    if sched:
-                        target_end = sched[0].get('ending_before') or target_end
-                        if contract_id and target_end:
+                    if contract_id:
+                        contract = getattr(entry, 'contract', None)
+                        if contract is not None and getattr(contract, 'id', None) != contract_id:
+                            continue
+                    sched = getattr(entry, 'access_schedule', None)
+                    sitems = getattr(sched, 'schedule_items', []) if sched is not None else []
+                    if sitems:
+                        target_end_dt = getattr(sitems[0], 'ending_before', None) or target_end_dt
+                        if contract_id and target_end_dt:
                             break
-                if target_end:
-                    iso = target_end.replace('Z', '+00:00') if 'Z' in target_end else target_end
-                    dt = datetime.fromisoformat(iso)
-                    end_str = dt.strftime('%b %d, %Y %H:%M UTC')
+                if target_end_dt:
+                    if getattr(target_end_dt, 'tzinfo', None) is None:
+                        from datetime import timezone as _tz
+                        target_end_dt = target_end_dt.replace(tzinfo=_tz.utc)
+                    end_str = target_end_dt.strftime('%b %d, %Y %H:%M UTC')
             except Exception as e:
                 print(f"⚠️ Could not compute end_at for prod conversion push: {e}")
 
@@ -364,11 +396,28 @@ async def handle_metronome_invoices(request: Request):
     - invoice.billing_provider_error
     """
     try:
-        # Get headers for verification
-        headers = dict(request.headers)
-        
-        # Get webhook data
-        webhook_data = await request.json()
+        # Normalize headers
+        headers = {k.lower(): v for k, v in dict(request.headers).items()}
+
+        # Verify webhook signature if configured
+        raw_body = await request.body()
+        webhook_data = None
+        secret = getattr(settings, "METRONOME_WEBHOOK_SECRET", None)
+        if secret:
+            signature = (
+                headers.get("x-metronome-signature")
+                or headers.get("metronome-signature")
+                or headers.get("signature")
+            )
+            date_header = headers.get("date", "")
+            if not signature or not verify_webhook_signature(signature, date_header, raw_body, secret):
+                raise HTTPException(status_code=401, detail="Invalid webhook signature")
+            try:
+                webhook_data = json.loads(raw_body.decode("utf-8") or "{}")
+            except Exception:
+                webhook_data = {}
+        else:
+            webhook_data = await request.json()
         
         # 🔍 COMPREHENSIVE WEBHOOK LOGGING
         print("=" * 70)
@@ -377,7 +426,8 @@ async def handle_metronome_invoices(request: Request):
         print(f"   Type: {webhook_data.get('type')}")
         print(f"   Timestamp: {headers.get('date')}")
         print(f"   Properties: {json.dumps(webhook_data.get('properties', {}), indent=2)}")
-        print(f"   Full Headers: {headers}")
+        safe_headers = {k: headers.get(k) for k in ["date", "user-agent", "content-type"] if headers.get(k)}
+        print(f"   Header summary: {safe_headers}")
         print("=" * 70)
         
         # Handle specific invoice types
@@ -438,11 +488,28 @@ async def handle_metronome_payment_gating(request: Request):
     - payment_gate.external_workflow_initiated
     """
     try:
-        # Get headers for verification
-        headers = dict(request.headers)
+        # Normalize headers
+        headers = {k.lower(): v for k, v in dict(request.headers).items()}
         
-        # Get webhook data
-        webhook_data = await request.json()
+        # Verify webhook signature if configured
+        raw_body = await request.body()
+        webhook_data = None
+        secret = getattr(settings, "METRONOME_WEBHOOK_SECRET", None)
+        if secret:
+            signature = (
+                headers.get("x-metronome-signature")
+                or headers.get("metronome-signature")
+                or headers.get("signature")
+            )
+            date_header = headers.get("date", "")
+            if not signature or not verify_webhook_signature(signature, date_header, raw_body, secret):
+                raise HTTPException(status_code=401, detail="Invalid webhook signature")
+            try:
+                webhook_data = json.loads(raw_body.decode("utf-8") or "{}")
+            except Exception:
+                webhook_data = {}
+        else:
+            webhook_data = await request.json()
         
         # 🔍 COMPREHENSIVE WEBHOOK LOGGING
         print("=" * 70)
@@ -498,13 +565,14 @@ async def handle_metronome_test(request: Request):
     Use this for debugging new webhook types
     """
     try:
-        headers = dict(request.headers)
+        headers = {k.lower(): v for k, v in dict(request.headers).items()}
         webhook_data = await request.json()
         
         print("=" * 70)
         print("🧪 METRONOME TEST WEBHOOK RECEIVED:")
         print(f"   Full Data: {json.dumps(webhook_data, indent=2)}")
-        print(f"   Full Headers: {headers}")
+        safe_headers = {k: headers.get(k) for k in ["date", "user-agent", "content-type"] if headers.get(k)}
+        print(f"   Header summary: {safe_headers}")
         print("=" * 70)
         
         return {
@@ -518,16 +586,6 @@ async def handle_metronome_test(request: Request):
             "status": "error",
             "message": f"Test webhook failed: {str(e)}"
         }
-
-# Add this function to your webhooks.py file (after the broadcast_event function):
-
-@router.get("/events/{customer_id}")
-
-# Replace your customer_events function with this debug version:
-
-@router.get("/events/{customer_id}")
-
-# Add this to your webhooks.py - FIXED SSE endpoint with proper headers
 
 @router.get("/events/{customer_id}")
 async def customer_events(customer_id: str):
@@ -593,7 +651,7 @@ async def customer_events(customer_id: str):
     # ✅ FIXED: Return StreamingResponse with proper SSE headers
     return StreamingResponse(
         event_stream(), 
-        media_type="text/plain",
+        media_type="text/event-stream",
         headers={
             # Critical SSE headers
             "Cache-Control": "no-cache",
