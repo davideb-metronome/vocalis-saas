@@ -1,93 +1,71 @@
-# Vocalis SaaS - AI Voice Generation Platform
+# Vocalis
 
-> **Professional AI Voice Generation with Metronome Billing Integration**
+FastAPI backend + static frontend with Metronome billing via the official Python SDK (metronome-sdk). Supports prepaid credits, plan selection, usage ingest, auto‑recharge (threshold billing), and realtime updates via SSE.
 
-## 🏗️ Architecture
+## Requirements
 
-- **Frontend**: Modern HTML/CSS/JS with modular architecture
-- **Backend**: FastAPI with Metronome billing integration  
-- **Billing**: Prepaid credits with auto-recharge via webhooks
-- **Integration**: Real-time updates via Server-Sent Events
+- Python 3.10+
+- Root `.env` with:
+  - `METRONOME_API_KEY`
+  - `METRONOME_API_URL=https://api.metronome.com`
+  - `METRONOME_RATE_CARD_NAME` (exact rate card name in Metronome)
+  - `VOCALIS_CREDIT_TYPE_ID` (your custom credit type id)
+  - `METRONOME_WEBHOOK_SECRET` (optional, to verify webhooks)
 
-## 🚀 Quick Start
+## Quick Start
 
-### 1. Install Dependencies
+1) Install dependencies
 
-```bash
+```
+python3 -m venv venv
+source venv/bin/activate
 cd backend
 pip install -r requirements.txt
 ```
 
-### 2. Configure Environment
+2) Configure environment
 
-```bash
-cp .env.example .env
-# Edit .env with your Metronome API credentials
+```
+cp .env.example ../.env
+# Edit ../.env with your Metronome keys and names
 ```
 
-### 3. Run Development Server
+3) Run the server
 
-```bash
-cd backend
+```
 python -m app.main
 ```
 
-Visit: http://localhost:8000
+Visit http://localhost:8000
 
-## 📁 Project Structure
+Health: http://localhost:8000/health/integrations
 
-```
-vocalis-saas/
-├── backend/           # FastAPI application
-│   ├── app/
-│   │   ├── api/       # API routes
-│   │   ├── core/      # Configuration
-│   │   ├── services/  # External service integrations
-│   │   └── main.py    # Application entry point
-│   └── requirements.txt
-├── frontend/          # Static assets and templates
-│   ├── static/
-│   │   ├── css/       # Modular stylesheets
-│   │   └── js/        # Component-based JavaScript
-│   └── templates/     # Jinja2 HTML templates
-└── docs/             # Documentation
-```
+## SDK‑Only
 
-## 🔧 Development
+- All Metronome calls use `metronome-sdk`.
+- Temporary shim: threshold‑billing release (POST `/v1/contracts/commits/threshold-billing/release`) is invoked via a tiny internal HTTP call until the SDK exposes it.
 
-### Metronome Integration Status
+## Metronome Setup
 
-Current implementation uses **stub functions** that will fail with `NotImplementedError`. This is intentional - no mock data, fail fast approach.
+- Rate card: create/confirm a card whose name equals `METRONOME_RATE_CARD_NAME`.
+- Credit type: ensure `VOCALIS_CREDIT_TYPE_ID` is valid on that rate card.
+- Product: "Vocalis Credits" is created on demand if missing.
+- Usage meters:
+  - `voice_generation`: properties include `text_length` and `voice_type` ("standard" | "premium").
+  - `voice_cloning`: one‑time setup event (configure a meter if you want a 25,000 credit deduction).
+- Webhooks (ngrok/public URL):
+  - Alerts → `POST /api/webhooks/metronome/alerts`
+  - Payment gating → `POST /api/webhooks/metronome/payment-gating`
+  - If `METRONOME_WEBHOOK_SECRET` is set, signatures must match.
 
-To implement real integration:
-1. Add Metronome API credentials to `.env`
-2. Implement actual API calls in `backend/app/services/metronome/client.py`
-3. Test with real Metronome endpoints
+## Core Flows
 
-### API Endpoints
+- Signup → creates customer with ingest aliases.
+- Plan selection (Trial/Creator/Pro) → creates contract with initial credits.
+- Usage (Standard/Premium/Clone) → ingests events; balance updates.
+- Auto‑recharge → on `external_initiate` webhook, app releases threshold billing and broadcasts `balance_updated`.
 
-- `POST /api/auth/signup` - User registration
-- `POST /api/billing/credits/purchase` - Credit purchases  
-- `GET /api/billing/credits/balance/{customer_id}` - Balance check
-- `POST /api/usage/generate-voice` - Voice generation
-- `POST /api/webhooks/metronome/*` - Webhook handlers
+## Realtime (SSE)
 
-## 🎯 Next Steps
-
-1. **Implement Metronome Integration**: Replace stubs with real API calls
-2. **Add Voice Generation Service**: Integrate with AI voice provider
-3. **Server-Sent Events**: Real-time balance updates
-4. **Webhook Processing**: Auto-recharge automation
-5. **Production Deployment**: Docker + cloud infrastructure
-
-## 📖 Documentation
-
-- [API Documentation](docs/api/)
-- [Architecture Guide](docs/architecture/)
-- [Deployment Guide](docs/deployment/)
-
----
-
-**Status**: Development Ready ✅  
-**Metronome Integration**: Stub Implementation (Fails Fast) ⚠️  
-**Voice Generation**: Stub Implementation ⚠️
+- Client connects to `GET /api/webhooks/events/{customer_id}`.
+- Server streams initial `connected` and subsequent `balance_updated` events.
